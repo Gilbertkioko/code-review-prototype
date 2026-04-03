@@ -141,20 +141,22 @@
 		</p>
 	</header>
 
-	<section class="rounded-lg border border-kood-border bg-kood-surface p-5">
-		<h3 class="text-sm font-semibold text-kood-text">How to do testing?</h3>
-		<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
-			<li>Clone the repository, then build and run the submitted code.</li>
-			<li>
-				<strong class="text-kood-text/90">Mandatory split is assigned in the UI</strong> — focus on your owned rows;
-				watch the peer’s tab to stay aligned.
-			</li>
-			<li>Test functionality and check compliance with the requirements.</li>
-			<li>Provide feedback in the group chat and request fixes if necessary.</li>
-			<li>Clearly state what changes are mandatory and what are optional fixes.</li>
-			<li>Repeat the cycle after submitters make changes as many times as needed.</li>
-		</ol>
-	</section>
+	{#if isReviewer}
+		<section class="rounded-lg border border-kood-border bg-kood-surface p-5">
+			<h3 class="text-sm font-semibold text-kood-text">How to do testing?</h3>
+			<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
+				<li>Clone the repository, then build and run the submitted code.</li>
+				<li>
+					<strong class="text-kood-text/90">Mandatory split is assigned in the UI</strong> — focus on your owned rows;
+					watch the peer’s tab to stay aligned.
+				</li>
+				<li>Test functionality and check compliance with the requirements.</li>
+				<li>Provide feedback in the group chat and request fixes if necessary.</li>
+				<li>Clearly state what changes are mandatory and what are optional fixes.</li>
+				<li>Repeat the cycle after submitters make changes as many times as needed.</li>
+			</ol>
+		</section>
+	{/if}
 
 	<section
 		class="rounded-lg border border-kood-border bg-kood-surface p-4"
