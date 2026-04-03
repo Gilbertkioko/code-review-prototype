@@ -5,7 +5,7 @@
 		getApp,
 		goToCodeReview,
 		mandatoryItems,
-		mandatoryOwnedAcceptedCount,
+		mandatoryOwnedResolvedCount,
 		mandatoryOwnerAccepted,
 		mandatoryProgressForReviewer,
 		sandraStartNewTestingRound
@@ -47,11 +47,17 @@
 	const janeProg = $derived(mandatoryProgressForReviewer('jane'));
 	const joeProg = $derived(mandatoryProgressForReviewer('joe'));
 
-	const janePct = $derived(
-		janeProg.owned === 0 ? 0 : Math.round((janeProg.accepted / janeProg.owned) * 100)
+	const janeAcceptPct = $derived(
+		janeProg.owned === 0 ? 0 : (janeProg.accepted / janeProg.owned) * 100
 	);
-	const joePct = $derived(
-		joeProg.owned === 0 ? 0 : Math.round((joeProg.accepted / joeProg.owned) * 100)
+	const janeDeclinePct = $derived(
+		janeProg.owned === 0 ? 0 : (janeProg.declined / janeProg.owned) * 100
+	);
+	const joeAcceptPct = $derived(
+		joeProg.owned === 0 ? 0 : (joeProg.accepted / joeProg.owned) * 100
+	);
+	const joeDeclinePct = $derived(
+		joeProg.owned === 0 ? 0 : (joeProg.declined / joeProg.owned) * 100
 	);
 
 	const mandatoryPageCount = $derived(
@@ -63,12 +69,6 @@
 			mandatoryPageSafe * MANDATORY_PAGE_SIZE,
 			mandatoryPageSafe * MANDATORY_PAGE_SIZE + MANDATORY_PAGE_SIZE
 		)
-	);
-
-	const totalMandatoryPct = $derived(
-		mandatoryList.length === 0
-			? 0
-			: Math.round((mandatoryOwnedAcceptedCount() / mandatoryList.length) * 100)
 	);
 
 	function pageChunkFullyAccepted(items: TestingItem[], pageIdx: number): boolean {
@@ -142,49 +142,73 @@
 	>
 		<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Team · mandatory completion</p>
 		<p class="mt-1 text-sm text-kood-text">
-			<strong class="text-kood-accent">{mandatoryOwnedAcceptedCount()}</strong>
+			<strong class="text-kood-text">{mandatoryOwnedResolvedCount()}</strong>
 			<span class="text-kood-muted"> / {mandatoryList.length}</span>
-			<span class="text-kood-muted"> rows accepted by their assigned reviewer</span>
+			<span class="text-kood-muted"> rows with a verdict (accepted or declined)</span>
 		</p>
-		<div class="mt-2 h-3 overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60">
-			<div
-				class="h-full rounded-full bg-kood-accent transition-[width] duration-300"
-				style="width: {totalMandatoryPct}%"
-			></div>
-		</div>
-		<p class="mt-1 text-right text-[11px] font-medium text-kood-muted">{totalMandatoryPct}% of mandatory scope done</p>
 
-		<div class="mt-5 grid gap-4 sm:grid-cols-2">
+		<p class="mt-3 text-[11px] text-kood-muted">
+			<span class="inline-flex items-center gap-1">
+				<span class="inline-block size-2 rounded-sm bg-kood-accent/55 ring-1 ring-kood-accent/50"></span>
+				Accepted
+			</span>
+			<span class="ml-3 inline-flex items-center gap-1">
+				<span class="inline-block size-2 rounded-sm bg-red-500/50 ring-1 ring-red-400/45"></span>
+				Declined
+			</span>
+			<span class="ml-3 inline-flex items-center gap-1">
+				<span class="inline-block size-2 rounded-sm bg-kood-bg ring-1 ring-kood-border/60"></span>
+				Pending
+			</span>
+		</p>
+
+		<div class="mt-4 grid gap-4 sm:grid-cols-2">
 			<div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="font-medium text-kood-text">Jane’s bucket</span>
-					<span class="text-kood-muted">{janeProg.accepted}/{janeProg.owned}</span>
+					<span class="text-kood-muted">{janeProg.resolved}/{janeProg.owned}</span>
 				</div>
-				<div class="mt-1.5 h-2 overflow-hidden rounded-full bg-kood-bg">
+				<div
+					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
+					role="img"
+					aria-label="Jane’s mandatory checks: {janeProg.accepted} accepted, {janeProg.declined} declined, {janeProg.owned - janeProg.resolved} pending of {janeProg.owned}"
+				>
 					<div
-						class="h-full rounded-full bg-kood-accent/70 transition-[width] duration-300"
-						style="width: {janePct}%"
+						class="h-full bg-kood-accent/55 transition-[width] duration-300"
+						style="width: {janeAcceptPct}%"
+					></div>
+					<div
+						class="h-full bg-red-500/50 transition-[width] duration-300"
+						style="width: {janeDeclinePct}%"
 					></div>
 				</div>
 			</div>
 			<div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="font-medium text-kood-text">Joe’s bucket</span>
-					<span class="text-kood-muted">{joeProg.accepted}/{joeProg.owned}</span>
+					<span class="text-kood-muted">{joeProg.resolved}/{joeProg.owned}</span>
 				</div>
-				<div class="mt-1.5 h-2 overflow-hidden rounded-full bg-kood-bg">
+				<div
+					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
+					role="img"
+					aria-label="Joe’s mandatory checks: {joeProg.accepted} accepted, {joeProg.declined} declined, {joeProg.owned - joeProg.resolved} pending of {joeProg.owned}"
+				>
 					<div
-						class="h-full rounded-full bg-kood-text/25 transition-[width] duration-300"
-						style="width: {joePct}%"
+						class="h-full bg-kood-accent/55 transition-[width] duration-300"
+						style="width: {joeAcceptPct}%"
+					></div>
+					<div
+						class="h-full bg-red-500/50 transition-[width] duration-300"
+						style="width: {joeDeclinePct}%"
 					></div>
 				</div>
 			</div>
 		</div>
 
 		<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
-			Pagination only changes which cards you see. The bars above always count <strong class="text-kood-text/80"
+			Pagination only changes which cards you see. The bars above always reflect <strong class="text-kood-text/80"
 				>every</strong
-			> mandatory row — you can’t finish the phase until both buckets reach their totals.
+			> mandatory row in each bucket — you can’t finish the phase until each owned row is accepted.
 		</p>
 	</section>
 
