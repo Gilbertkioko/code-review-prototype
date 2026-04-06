@@ -50,14 +50,6 @@
 		<div class="min-w-0 flex-1">
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="font-mono text-[10px] uppercase tracking-wide text-kood-muted">{item.id}</span>
-				{#if item.section === 'mandatory' && owner}
-					<span
-						class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 {owner === 'jane'
-							? 'bg-kood-accent/15 text-kood-accent ring-kood-accent/30'
-							: 'bg-kood-surface-raised text-kood-text/90 ring-kood-border'}"
-						>{owner === 'jane' ? 'Jane owns' : 'Joe owns'}</span
-					>
-				{/if}
 				{#if flagged}
 					<span class="text-[10px] font-semibold uppercase text-amber-400/90">Attention</span>
 				{/if}
@@ -105,26 +97,26 @@
 		aria-label="Verdicts and quick actions"
 	>
 		{#if item.section === 'mandatory' && owner}
-			{#if owner === 'jane'}
-				<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item.jane)}"
-					>Jane · {verdictLabel(item.jane)}</span
-				>
-				<span
-					class="rounded px-2 py-0.5 text-kood-muted/80 ring-1 ring-kood-border/60"
-					title="Peer follows along; no separate verdict on this row">Joe · observes</span
-				>
-			{:else}
-				<span
-					class="rounded px-2 py-0.5 text-kood-muted/80 ring-1 ring-kood-border/60"
-					title="Peer follows along; no separate verdict on this row">Jane · observes</span
-				>
-				<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item.joe)}"
-					>Joe · {verdictLabel(item.joe)}</span
+			{#if (item[owner] === 'accept' || item[owner] === 'decline') && !canSetVerdict}
+				<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item[owner])}"
+					>{verdictLabel(item[owner])}</span
 				>
 			{/if}
 		{:else}
-			<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item.jane)}">J · {verdictLabel(item.jane)}</span>
-			<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item.joe)}">Joe · {verdictLabel(item.joe)}</span>
+			{#if item.jane === 'accept' || item.jane === 'decline'}
+				{#if !(isReviewer && self === 'jane' && canSetVerdict)}
+					<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item.jane)}"
+						>J · {verdictLabel(item.jane)}</span
+					>
+				{/if}
+			{/if}
+			{#if item.joe === 'accept' || item.joe === 'decline'}
+				{#if !(isReviewer && self === 'joe' && canSetVerdict)}
+					<span class="rounded px-2 py-0.5 ring-1 {verdictChipClass(item.joe)}"
+						>Joe · {verdictLabel(item.joe)}</span
+					>
+				{/if}
+			{/if}
 		{/if}
 		{#if canSetVerdict}
 			<div class="ml-auto flex flex-wrap gap-1">
@@ -145,7 +137,7 @@
 			</div>
 		{:else if isReviewer && self && item.section === 'mandatory' && owner && owner !== self}
 			<p class="ml-auto max-w-[14rem] text-right text-[11px] text-kood-muted">
-				Only {owner === 'jane' ? 'Jane' : 'Joe'} Accepts/Declines — you can expand to read &amp; comment.
+				Read-only verdict here — expand to comment in the thread.
 			</p>
 		{/if}
 		{#if isSandra && !open}
@@ -159,19 +151,16 @@
 				{#if item.section === 'mandatory' && owner}
 					{#if owner === self}
 						<p class="text-[11px] text-kood-muted">
-							{peer === 'jane' ? 'Jane' : 'Joe'} can read along and comment; they do not submit a verdict on this
-							row.
+							The other reviewer can read and comment; they do not set a verdict on this row.
 						</p>
 					{:else}
 						<p class="text-[11px] text-kood-muted">
-							<strong class="text-kood-text/80">{owner === 'jane' ? 'Jane' : 'Joe'}</strong> owns this check ·
-							currently <strong class="text-kood-text/80">{verdictLabel(item[owner])}</strong>. Your notes in the
-							thread still help the submitter.
+							Verdict is read-only for you here. Notes in the thread still help the submitter.
 						</p>
 					{/if}
-				{:else}
+				{:else if item[peer] === 'accept' || item[peer] === 'decline'}
 					<p class="text-[11px] text-kood-muted">
-						{peer === 'jane' ? 'Jane' : 'Joe'}: {verdictLabel(item[peer])} (read-only)
+						Other reviewer: {verdictLabel(item[peer])} (read-only)
 					</p>
 				{/if}
 			{/if}
@@ -204,40 +193,76 @@
 			{#if isReviewer && self}
 				<div>
 					<label class="text-[11px] text-kood-muted" for="d-{item.id}">Comment</label>
-					<textarea
-						id="d-{item.id}"
-						rows="2"
-						class="mt-1 w-full rounded-md border border-kood-border bg-kood-bg px-2.5 py-1.5 text-sm text-kood-text placeholder:text-kood-muted/60"
-						placeholder="Findings, required vs optional…"
-						value={item.drafts[self] ?? ''}
-						oninput={(e) =>
-							setTestingDraft(item.id, self, (e.currentTarget as HTMLTextAreaElement).value)}
-					></textarea>
-					<button
-						type="button"
-						class="mt-1.5 rounded-md bg-kood-surface-raised px-2.5 py-1 text-[11px] font-medium text-kood-text hover:brightness-110"
-						onclick={() => postTestingComment(item.id)}>Post</button
-					>
+					<div class="relative mt-1">
+						<textarea
+							id="d-{item.id}"
+							rows="2"
+							class="min-h-[4.5rem] w-full resize-y rounded-md border border-kood-border bg-kood-bg py-2 pl-2.5 pr-11 pb-9 text-sm text-kood-text placeholder:text-kood-muted/60"
+							placeholder="Findings, required vs optional…"
+							value={item.drafts[self] ?? ''}
+							oninput={(e) =>
+								setTestingDraft(item.id, self, (e.currentTarget as HTMLTextAreaElement).value)}
+						></textarea>
+						<button
+							type="button"
+							class="absolute bottom-2 right-2 rounded-md p-2 text-kood-accent hover:bg-kood-accent/10 disabled:pointer-events-none disabled:opacity-35"
+							aria-label="Send comment"
+							disabled={!(item.drafts[self]?.trim())}
+							onclick={() => postTestingComment(item.id)}
+						>
+							<svg
+								class="size-[18px]"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="m22 2-7 20-4-9-9-4Z" />
+								<path d="M22 2 11 13" />
+							</svg>
+						</button>
+					</div>
 				</div>
 			{/if}
 
 			{#if isSandra}
 				<div>
 					<label class="text-[11px] text-kood-muted" for="s-{item.id}">Reply</label>
-					<textarea
-						id="s-{item.id}"
-						rows="2"
-						class="mt-1 w-full rounded-md border border-kood-border bg-kood-bg px-2.5 py-1.5 text-sm text-kood-text placeholder:text-kood-muted/60"
-						placeholder="What changed, how to verify…"
-						value={item.drafts.sandra ?? ''}
-						oninput={(e) =>
-							setTestingDraft(item.id, 'sandra', (e.currentTarget as HTMLTextAreaElement).value)}
-					></textarea>
-					<button
-						type="button"
-						class="mt-1.5 rounded-md border border-kood-accent/40 bg-kood-accent/10 px-2.5 py-1 text-[11px] font-medium text-kood-accent hover:bg-kood-accent/15"
-						onclick={() => postTestingComment(item.id)}>Post</button
-					>
+					<div class="relative mt-1">
+						<textarea
+							id="s-{item.id}"
+							rows="2"
+							class="min-h-[4.5rem] w-full resize-y rounded-md border border-kood-border bg-kood-bg py-2 pl-2.5 pr-11 pb-9 text-sm text-kood-text placeholder:text-kood-muted/60"
+							placeholder="What changed, how to verify…"
+							value={item.drafts.sandra ?? ''}
+							oninput={(e) =>
+								setTestingDraft(item.id, 'sandra', (e.currentTarget as HTMLTextAreaElement).value)}
+						></textarea>
+						<button
+							type="button"
+							class="absolute bottom-2 right-2 rounded-md p-2 text-kood-accent hover:bg-kood-accent/15 disabled:pointer-events-none disabled:opacity-35"
+							aria-label="Send reply"
+							disabled={!(item.drafts.sandra?.trim())}
+							onclick={() => postTestingComment(item.id)}
+						>
+							<svg
+								class="size-[18px]"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="m22 2-7 20-4-9-9-4Z" />
+								<path d="M22 2 11 13" />
+							</svg>
+						</button>
+					</div>
 				</div>
 			{/if}
 

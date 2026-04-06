@@ -2,64 +2,62 @@
 	import type { TestingItem } from '$lib/types';
 	import {
 		allMandatoryDoubleAccepted,
-		extraItems,
 		getApp,
 		goToCodeReview,
 		mandatoryItems,
-		mandatoryOwnedAcceptedCount,
+		mandatoryOwnedResolvedCount,
 		mandatoryOwnerAccepted,
 		mandatoryProgressForReviewer,
 		sandraStartNewTestingRound
 	} from '$lib/appState.svelte';
 	import TestingItemCard from './TestingItemCard.svelte';
 
-	const MANDATORY_PAGE_SIZE = 8;
-	const EXTRA_PAGE_SIZE = 8;
+	const MANDATORY_PAGE_SIZE = 5;
 
-	type MandatoryFilter = 'all' | 'jane_owned' | 'joe_owned';
+	type MandatoryFilter = 'jane_owned' | 'joe_owned';
 
 	const app = getApp();
 	const isReviewer = $derived(app.role === 'jane' || app.role === 'joe');
 	const isSandra = $derived(app.role === 'sandra');
 
-	let extraOpen = $state(true);
 	let expanded = $state<Record<string, boolean>>({});
 
 	let mandatoryPage = $state(0);
-	let extraPage = $state(0);
 
 	let mandatoryFilter = $state<MandatoryFilter>(
-		app.role === 'jane' ? 'jane_owned' : app.role === 'joe' ? 'joe_owned' : 'all'
+		app.role === 'joe' ? 'joe_owned' : 'jane_owned'
 	);
 
 	$effect(() => {
 		const r = app.role;
 		if (r === 'jane') mandatoryFilter = 'jane_owned';
 		else if (r === 'joe') mandatoryFilter = 'joe_owned';
-		else mandatoryFilter = 'all';
+		else mandatoryFilter = 'jane_owned';
 	});
 
-	const allIds = $derived([...mandatoryItems(), ...extraItems()].map((i) => i.id));
-
 	const mandatoryList = $derived(mandatoryItems());
-	const extraList = $derived(extraItems());
+	const allIds = $derived(mandatoryList.map((i) => i.id));
 
 	const mandatoryFiltered = $derived(
-		mandatoryFilter === 'all'
-			? mandatoryList
-			: mandatoryFilter === 'jane_owned'
-				? mandatoryList.filter((t) => t.mandatoryOwner === 'jane')
-				: mandatoryList.filter((t) => t.mandatoryOwner === 'joe')
+		mandatoryFilter === 'jane_owned'
+			? mandatoryList.filter((t) => t.mandatoryOwner === 'jane')
+			: mandatoryList.filter((t) => t.mandatoryOwner === 'joe')
 	);
 
 	const janeProg = $derived(mandatoryProgressForReviewer('jane'));
 	const joeProg = $derived(mandatoryProgressForReviewer('joe'));
 
-	const janePct = $derived(
-		janeProg.owned === 0 ? 0 : Math.round((janeProg.accepted / janeProg.owned) * 100)
+	const janeAcceptPct = $derived(
+		janeProg.owned === 0 ? 0 : (janeProg.accepted / janeProg.owned) * 100
 	);
-	const joePct = $derived(
-		joeProg.owned === 0 ? 0 : Math.round((joeProg.accepted / joeProg.owned) * 100)
+	const janeDeclinePct = $derived(
+		janeProg.owned === 0 ? 0 : (janeProg.declined / janeProg.owned) * 100
+	);
+	const joeAcceptPct = $derived(
+		joeProg.owned === 0 ? 0 : (joeProg.accepted / joeProg.owned) * 100
+	);
+	const joeDeclinePct = $derived(
+		joeProg.owned === 0 ? 0 : (joeProg.declined / joeProg.owned) * 100
 	);
 
 	const mandatoryPageCount = $derived(
@@ -71,21 +69,6 @@
 			mandatoryPageSafe * MANDATORY_PAGE_SIZE,
 			mandatoryPageSafe * MANDATORY_PAGE_SIZE + MANDATORY_PAGE_SIZE
 		)
-	);
-
-	const extraPageCount = $derived(Math.max(1, Math.ceil(extraList.length / EXTRA_PAGE_SIZE)));
-	const extraPageSafe = $derived(Math.min(extraPage, extraPageCount - 1));
-	const extraSlice = $derived(
-		extraList.slice(
-			extraPageSafe * EXTRA_PAGE_SIZE,
-			extraPageSafe * EXTRA_PAGE_SIZE + EXTRA_PAGE_SIZE
-		)
-	);
-
-	const totalMandatoryPct = $derived(
-		mandatoryList.length === 0
-			? 0
-			: Math.round((mandatoryOwnedAcceptedCount() / mandatoryList.length) * 100)
 	);
 
 	function pageChunkFullyAccepted(items: TestingItem[], pageIdx: number): boolean {
@@ -120,10 +103,6 @@
 		mandatoryPage = Math.max(0, Math.min(n, mandatoryPageCount - 1));
 	}
 
-	function setExtraPage(n: number) {
-		extraPage = Math.max(0, Math.min(n, extraPageCount - 1));
-	}
-
 	function setFilter(f: MandatoryFilter) {
 		mandatoryFilter = f;
 		mandatoryPage = 0;
@@ -135,26 +114,27 @@
 		<h2 class="text-2xl font-semibold text-kood-text">Testing</h2>
 		<p class="mt-3 text-sm leading-relaxed text-kood-muted">
 			Mandatory checks are <strong class="text-kood-text/90">split between Jane and Joe</strong> — each row has one
-			owner who Accepts/Declines; the other reviewer reads along and can comment. Extra checks still use both
-			reviewers as before. Progress below always reflects the <strong class="text-kood-text/90">full</strong> mandatory
-			list.
+			owner who Accepts/Declines; the other reviewer reads along and can comment. Progress below always reflects the
+			<strong class="text-kood-text/90">full</strong> mandatory list.
 		</p>
 	</header>
 
-	<section class="rounded-lg border border-kood-border bg-kood-surface p-5">
-		<h3 class="text-sm font-semibold text-kood-text">How to do testing?</h3>
-		<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
-			<li>Clone the repository, then build and run the submitted code.</li>
-			<li>
-				<strong class="text-kood-text/90">Mandatory split is assigned in the UI</strong> — focus on your owned rows;
-				watch the peer’s tab to stay aligned.
-			</li>
-			<li>Test functionality and check compliance with the requirements.</li>
-			<li>Provide feedback in the group chat and request fixes if necessary.</li>
-			<li>Clearly state what changes are mandatory and what are optional fixes.</li>
-			<li>Repeat the cycle after submitters make changes as many times as needed.</li>
-		</ol>
-	</section>
+	{#if isReviewer}
+		<section class="rounded-lg border border-kood-border bg-kood-surface p-5">
+			<h3 class="text-sm font-semibold text-kood-text">How to do testing?</h3>
+			<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
+				<li>Clone the repository, then build and run the submitted code.</li>
+				<li>
+					<strong class="text-kood-text/90">Mandatory split is assigned in the UI</strong> — focus on your owned rows;
+					watch the peer’s tab to stay aligned.
+				</li>
+				<li>Test functionality and check compliance with the requirements.</li>
+				<li>Provide feedback in the group chat and request fixes if necessary.</li>
+				<li>Clearly state what changes are mandatory and what are optional fixes.</li>
+				<li>Repeat the cycle after submitters make changes as many times as needed.</li>
+			</ol>
+		</section>
+	{/if}
 
 	<section
 		class="rounded-lg border border-kood-border bg-kood-surface p-4"
@@ -162,49 +142,73 @@
 	>
 		<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Team · mandatory completion</p>
 		<p class="mt-1 text-sm text-kood-text">
-			<strong class="text-kood-accent">{mandatoryOwnedAcceptedCount()}</strong>
+			<strong class="text-kood-text">{mandatoryOwnedResolvedCount()}</strong>
 			<span class="text-kood-muted"> / {mandatoryList.length}</span>
-			<span class="text-kood-muted"> rows accepted by their assigned reviewer</span>
+			<span class="text-kood-muted"> rows with a verdict (accepted or declined)</span>
 		</p>
-		<div class="mt-2 h-3 overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60">
-			<div
-				class="h-full rounded-full bg-kood-accent transition-[width] duration-300"
-				style="width: {totalMandatoryPct}%"
-			></div>
-		</div>
-		<p class="mt-1 text-right text-[11px] font-medium text-kood-muted">{totalMandatoryPct}% of mandatory scope done</p>
 
-		<div class="mt-5 grid gap-4 sm:grid-cols-2">
+		<p class="mt-3 text-[11px] text-kood-muted">
+			<span class="inline-flex items-center gap-1">
+				<span class="inline-block size-2 rounded-sm bg-kood-accent/55 ring-1 ring-kood-accent/50"></span>
+				Accepted
+			</span>
+			<span class="ml-3 inline-flex items-center gap-1">
+				<span class="inline-block size-2 rounded-sm bg-red-500/50 ring-1 ring-red-400/45"></span>
+				Declined
+			</span>
+			<span class="ml-3 inline-flex items-center gap-1">
+				<span class="inline-block size-2 rounded-sm bg-kood-bg ring-1 ring-kood-border/60"></span>
+				Pending
+			</span>
+		</p>
+
+		<div class="mt-4 grid gap-4 sm:grid-cols-2">
 			<div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="font-medium text-kood-text">Jane’s bucket</span>
-					<span class="text-kood-muted">{janeProg.accepted}/{janeProg.owned}</span>
+					<span class="text-kood-muted">{janeProg.resolved}/{janeProg.owned}</span>
 				</div>
-				<div class="mt-1.5 h-2 overflow-hidden rounded-full bg-kood-bg">
+				<div
+					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
+					role="img"
+					aria-label="Jane’s mandatory checks: {janeProg.accepted} accepted, {janeProg.declined} declined, {janeProg.owned - janeProg.resolved} pending of {janeProg.owned}"
+				>
 					<div
-						class="h-full rounded-full bg-kood-accent/70 transition-[width] duration-300"
-						style="width: {janePct}%"
+						class="h-full bg-kood-accent/55 transition-[width] duration-300"
+						style="width: {janeAcceptPct}%"
+					></div>
+					<div
+						class="h-full bg-red-500/50 transition-[width] duration-300"
+						style="width: {janeDeclinePct}%"
 					></div>
 				</div>
 			</div>
 			<div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="font-medium text-kood-text">Joe’s bucket</span>
-					<span class="text-kood-muted">{joeProg.accepted}/{joeProg.owned}</span>
+					<span class="text-kood-muted">{joeProg.resolved}/{joeProg.owned}</span>
 				</div>
-				<div class="mt-1.5 h-2 overflow-hidden rounded-full bg-kood-bg">
+				<div
+					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
+					role="img"
+					aria-label="Joe’s mandatory checks: {joeProg.accepted} accepted, {joeProg.declined} declined, {joeProg.owned - joeProg.resolved} pending of {joeProg.owned}"
+				>
 					<div
-						class="h-full rounded-full bg-kood-text/25 transition-[width] duration-300"
-						style="width: {joePct}%"
+						class="h-full bg-kood-accent/55 transition-[width] duration-300"
+						style="width: {joeAcceptPct}%"
+					></div>
+					<div
+						class="h-full bg-red-500/50 transition-[width] duration-300"
+						style="width: {joeDeclinePct}%"
 					></div>
 				</div>
 			</div>
 		</div>
 
 		<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
-			Pagination only changes which cards you see. The bars above always count <strong class="text-kood-text/80"
+			Pagination only changes which cards you see. The bars above always reflect <strong class="text-kood-text/80"
 				>every</strong
-			> mandatory row — you can’t finish the phase until both buckets reach their totals.
+			> mandatory row in each bucket — you can’t finish the phase until each owned row is accepted.
 		</p>
 	</section>
 
@@ -255,16 +259,7 @@
 			</p>
 		</div>
 
-		<div class="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Which mandatory checks to show">
-			<button
-				type="button"
-				class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors {mandatoryFilter === 'all'
-					? 'border-kood-accent bg-kood-accent/15 text-kood-accent'
-					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
-				role="tab"
-				aria-selected={mandatoryFilter === 'all'}
-				onclick={() => setFilter('all')}>All ({mandatoryList.length})</button
-			>
+		<div class="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Jane’s vs Joe’s mandatory checks">
 			<button
 				type="button"
 				class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors {mandatoryFilter === 'jane_owned'
@@ -335,50 +330,6 @@
 				<TestingItemCard item={item} open={isOpen(item.id)} onToggle={() => toggle(item.id)} />
 			{/each}
 		</div>
-	</section>
-
-	<section>
-		<button
-			type="button"
-			class="flex w-full items-center justify-between gap-3 rounded-lg border border-kood-border bg-kood-surface px-4 py-3 text-left text-sm font-semibold text-kood-text hover:bg-kood-surface-raised"
-			onclick={() => (extraOpen = !extraOpen)}
-		>
-			<span>Extra</span>
-			<span class="text-kood-muted">{extraOpen ? '▾' : '▸'}</span>
-		</button>
-		{#if extraOpen}
-			<p class="mt-2 text-xs text-kood-muted">
-				Optional — both Jane and Joe still vote on each extra row (not split).
-			</p>
-
-			{#if extraPageCount > 1}
-				<div
-					class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-kood-border bg-kood-bg/40 px-3 py-2"
-				>
-					<div class="flex flex-wrap items-center gap-2">
-						<button
-							type="button"
-							class="rounded-md border border-kood-border px-2 py-1 text-xs text-kood-text hover:bg-kood-surface-raised disabled:opacity-40"
-							disabled={extraPageSafe <= 0}
-							onclick={() => setExtraPage(extraPageSafe - 1)}>Previous</button
-						>
-						<button
-							type="button"
-							class="rounded-md border border-kood-border px-2 py-1 text-xs text-kood-text hover:bg-kood-surface-raised disabled:opacity-40"
-							disabled={extraPageSafe >= extraPageCount - 1}
-							onclick={() => setExtraPage(extraPageSafe + 1)}>Next</button
-						>
-						<span class="text-xs text-kood-muted">Page {extraPageSafe + 1} / {extraPageCount}</span>
-					</div>
-				</div>
-			{/if}
-
-			<div class="mt-3 space-y-2">
-				{#each extraSlice as item (item.id)}
-					<TestingItemCard item={item} open={isOpen(item.id)} onToggle={() => toggle(item.id)} />
-				{/each}
-			</div>
-		{/if}
 	</section>
 
 	{#if isSandra}

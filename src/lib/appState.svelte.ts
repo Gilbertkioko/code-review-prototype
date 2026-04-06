@@ -309,12 +309,30 @@ export function mandatoryOwnedAcceptedCount(): number {
 	return mandatoryItems().filter(mandatoryOwnerAccepted).length;
 }
 
-/** For one reviewer: how many they own vs accepted (mandatory only). */
-export function mandatoryProgressForReviewer(reviewer: 'jane' | 'joe'): { owned: number; accepted: number } {
+/** Mandatory rows where the assigned owner has accepted or declined (not pending). */
+export function mandatoryOwnedResolvedCount(): number {
+	return mandatoryItems().filter((t) => {
+		if (!t.mandatoryOwner) return false;
+		const d = t[t.mandatoryOwner];
+		return d === 'accept' || d === 'decline';
+	}).length;
+}
+
+/** For one reviewer: counts for mandatory rows they own (their verdict only). */
+export function mandatoryProgressForReviewer(reviewer: 'jane' | 'joe'): {
+	owned: number;
+	accepted: number;
+	declined: number;
+	resolved: number;
+} {
 	const mine = mandatoryItems().filter((t) => t.mandatoryOwner === reviewer);
+	const accepted = mine.filter((t) => t[reviewer] === 'accept').length;
+	const declined = mine.filter((t) => t[reviewer] === 'decline').length;
 	return {
 		owned: mine.length,
-		accepted: mine.filter((t) => t[reviewer] === 'accept').length
+		accepted,
+		declined,
+		resolved: accepted + declined
 	};
 }
 
