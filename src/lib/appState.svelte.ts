@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { seedCategorySessionsForJoeDemo, seedTestingItemsForYouJoeDemo } from '$lib/demo/youJoeDemoSeed';
 import { createFullTestingItems } from '$lib/features/testing/checklist';
 import { CATEGORIES, emptyObservationRowsForCategory, ACADEMY_BASE } from './constants';
 import type {
@@ -91,10 +92,10 @@ function mergeCategorySessions(
 
 function defaultSandraRatings(): SandraRating[] {
 	return [
-		{ categoryId: 'readability', score: null, comment: '', submitted: false },
-		{ categoryId: 'comments', score: null, comment: '', submitted: false },
 		{ categoryId: 'security', score: null, comment: '', submitted: false },
-		{ categoryId: 'exceptions', score: null, comment: '', submitted: false }
+		{ categoryId: 'correctness', score: null, comment: '', submitted: false },
+		{ categoryId: 'performance', score: null, comment: '', submitted: false },
+		{ categoryId: 'structure_architecture', score: null, comment: '', submitted: false }
 	];
 }
 
@@ -115,10 +116,10 @@ function createInitialSnapshot() {
 		phase: 'briefing' as Phase,
 		projectStarted: false,
 		submittedForReview: false,
-		testingItems: createFullTestingItems(),
-		testingRound: 1,
-		categorySessions: initialCategorySessions(),
-		codeReviewRound: 1,
+		testingItems: seedTestingItemsForYouJoeDemo(createFullTestingItems()),
+		testingRound: 5,
+		categorySessions: seedCategorySessionsForJoeDemo(initialCategorySessions()),
+		codeReviewRound: 5,
 		standupItems: [false, false, false, false, false] as boolean[],
 		standupWhen: '',
 		standupVoiceChannel: '',
@@ -127,7 +128,8 @@ function createInitialSnapshot() {
 		reviewerRatings: defaultReviewerRatings(),
 		xpMock: 0,
 		leaderboardNote: 'Feedback feeds XP and the leaderboard (mock).',
-		reviewerAssignmentAccepted: { jane: false, joe: false }
+		// Joe skips the assignment checkbox in this demo (work is already reflected).
+		reviewerAssignmentAccepted: { jane: false, joe: true }
 	};
 }
 
@@ -152,8 +154,32 @@ function normalizeReviewerAssignmentAccepted(
 	const o = parsed as Record<string, unknown>;
 	return {
 		jane: typeof o.jane === 'boolean' ? o.jane : fallback.jane,
-		joe: typeof o.joe === 'boolean' ? o.joe : fallback.joe
+		// Demo: Joe never goes through the assignment checkbox; always treated as accepted.
+		joe: true
 	};
+}
+
+/** Re-align stored Sandra ratings when category ids change (e.g. after prototype updates). */
+function normalizeSandraRatings(parsed: unknown): SandraRating[] {
+	const base = defaultSandraRatings();
+	if (!Array.isArray(parsed)) return base;
+	const byId = new Map<string, SandraRating>();
+	for (const x of parsed) {
+		if (!x || typeof x !== 'object') continue;
+		const r = x as SandraRating;
+		if (typeof r.categoryId !== 'string') continue;
+		byId.set(r.categoryId, {
+			categoryId: r.categoryId,
+			score: typeof r.score === 'number' || r.score === null ? r.score : null,
+			comment: typeof r.comment === 'string' ? r.comment : '',
+			submitted: Boolean(r.submitted)
+		});
+	}
+	return base.map((row) => {
+		const old = byId.get(row.categoryId);
+		if (!old) return { ...row };
+		return { ...row, score: old.score, comment: old.comment, submitted: old.submitted };
+	});
 }
 
 function load(): Snapshot {
@@ -177,7 +203,7 @@ function load(): Snapshot {
 			reviewerRatings: p.reviewerRatings
 				? { ...base.reviewerRatings, ...p.reviewerRatings }
 				: base.reviewerRatings,
-			sandraRatings: p.sandraRatings?.length ? p.sandraRatings : base.sandraRatings,
+			sandraRatings: normalizeSandraRatings(p.sandraRatings),
 			standupItems: normalizeStandupItems(p.standupItems, base.standupItems),
 			standupWhen: typeof p.standupWhen === 'string' ? p.standupWhen : base.standupWhen,
 			standupVoiceChannel:
@@ -222,25 +248,26 @@ export function setRole(role: Role) {
 export function confirmStartProject() {
 	data.projectStarted = true;
 	data.phase = 'project_completion';
-	data.reviewerAssignmentAccepted = { jane: false, joe: false };
+	data.reviewerAssignmentAccepted = { jane: false, joe: true };
 	pushToast('Project started — complete the brief, then submit for review.');
 }
 
 export function acceptReviewerAssignment(reviewer: 'jane' | 'joe') {
 	data.reviewerAssignmentAccepted[reviewer] = true;
-	pushToast(`${reviewer === 'jane' ? 'Jane' : 'Joe'}: assignment accepted — you can review.`);
+	pushToast(`${reviewer === 'jane' ? 'You' : 'Joe'}: assignment accepted — you can review.`);
 }
 
 export function reviewerNeedsAssignmentGate(role: Role): boolean {
 	if (role !== 'jane' && role !== 'joe') return false;
 	if (!data.projectStarted) return false;
+	if (role === 'joe') return false;
 	return !data.reviewerAssignmentAccepted[role];
 }
 
 export function confirmSubmitForReview() {
 	data.submittedForReview = true;
 	data.phase = 'testing';
-	pushToast('Reviewers assigned: Jane & Joe. Testing phase unlocked.');
+	pushToast('Reviewers assigned: You & Joe. Testing phase unlocked.');
 }
 
 export function setTestingVerdict(itemId: string, reviewer: 'jane' | 'joe', verdict: TestingDecision) {
@@ -297,7 +324,7 @@ export function sandraStartNewTestingRound() {
 		item.joe = 'pending';
 	}
 	data.testingRound += 1;
-	pushToast(`Round ${data.testingRound} started — Jane & Joe verdicts reset; history kept.`);
+	pushToast(`Round ${data.testingRound} started — You & Joe verdicts reset; history kept.`);
 }
 
 export function mandatoryItems() {
@@ -312,7 +339,7 @@ export function reviewerCommentCount(item: TestingItem) {
 	return item.comments.filter((c) => c.author === 'jane' || c.author === 'joe').length;
 }
 
-/** Mandatory complete when each row is Accepted by its single assigned owner (Jane or Joe). */
+/** Mandatory complete when each row is Accepted by its single assigned owner (You or Joe). */
 export function mandatoryOwnerAccepted(t: TestingItem): boolean {
 	if (t.section !== 'mandatory' || !t.mandatoryOwner) return false;
 	return t[t.mandatoryOwner] === 'accept';
@@ -356,7 +383,7 @@ export function mandatoryProgressForReviewer(reviewer: 'jane' | 'joe'): {
 
 export function goToCodeReview() {
 	if (!allMandatoryDoubleAccepted()) {
-		pushToast('Each mandatory check must be Accepted by its assigned reviewer (Jane or Joe).');
+		pushToast('Each mandatory check must be Accepted by its assigned reviewer (You or Joe).');
 		return;
 	}
 	data.phase = 'code_review';

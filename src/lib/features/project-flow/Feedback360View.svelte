@@ -47,7 +47,7 @@
 					<div class="rounded-xl border border-kood-border bg-kood-surface p-4">
 						<p class="text-sm font-medium text-kood-text">{cat.title}</p>
 						<p class="text-xs text-kood-muted">
-							Reviewer: {cat.assignee === 'jane' ? 'Jane' : 'Joe'}
+							Reviewer: {cat.assignee === 'jane' ? 'You' : 'Joe'}
 						</p>
 						<label class="mt-3 block text-xs text-kood-muted" for="sc-{cat.id}">Score</label>
 						<select
@@ -92,7 +92,7 @@
 	{:else if reviewerBlock}
 		<section class="space-y-4">
 			<h3 class="text-lg font-medium text-kood-text">
-				{app.role === 'joe' ? 'Joe' : 'Jane'} — rate Sandra & cross-reviewer
+				{app.role === 'joe' ? 'Joe' : 'You'} — rate Sandra & cross-reviewer
 			</h3>
 			<p class="text-sm text-kood-muted">
 				Scale for cross input: 1 = No cross input · 3 = Minor · 5 = Constructive cross input on areas you did
@@ -101,7 +101,7 @@
 
 			<div class="grid gap-4 md:grid-cols-2">
 				<div class="rounded-xl border border-kood-border bg-kood-surface p-4">
-					<p class="text-sm font-medium text-kood-text">Sandra — readable code</p>
+					<p class="text-sm font-medium text-kood-text">Sandra — structure &amp; architecture</p>
 					<select
 						class="mt-2 w-full rounded-lg border border-kood-border bg-kood-bg px-2 py-2 text-sm text-kood-text disabled:opacity-50"
 						disabled={reviewerBlock.readableCode.submitted}
@@ -136,7 +136,7 @@
 				</div>
 
 				<div class="rounded-xl border border-kood-border bg-kood-surface p-4">
-					<p class="text-sm font-medium text-kood-text">Sandra — comments in code</p>
+					<p class="text-sm font-medium text-kood-text">Sandra — performance</p>
 					<select
 						class="mt-2 w-full rounded-lg border border-kood-border bg-kood-bg px-2 py-2 text-sm text-kood-text disabled:opacity-50"
 						disabled={reviewerBlock.codeComments.submitted}
@@ -172,12 +172,12 @@
 
 				<div class="rounded-xl border border-kood-border bg-kood-surface p-4 md:col-span-2">
 					<p class="text-sm font-medium text-kood-text">
-						Cross reviewer ({app.role === 'joe' ? 'Jane' : 'Joe'}) — awareness in your categories
+						Cross reviewer ({app.role === 'joe' ? 'You' : 'Joe'}) — awareness in your categories
 					</p>
 					<p class="text-xs text-kood-muted">
 						{app.role === 'joe'
-							? 'Did Jane raise relevant questions in readability / comments?'
-							: 'Did Joe raise relevant questions in security / exception handling?'}
+							? 'Did your peer raise relevant questions in security / correctness?'
+							: 'Did Joe raise relevant questions in performance / structure & architecture?'}
 					</p>
 					<select
 						class="mt-2 w-full max-w-xs rounded-lg border border-kood-border bg-kood-bg px-2 py-2 text-sm text-kood-text disabled:opacity-50"
