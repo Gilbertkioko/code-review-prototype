@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { getApp, reviewerNeedsAssignmentGate } from '$lib/appState.svelte';
+	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
 	import ProjectBriefing from '$lib/features/briefing/ProjectBriefing.svelte';
 	import ReviewerBriefingWait from '$lib/features/briefing/ReviewerBriefingWait.svelte';
 	import CodeReviewView from '$lib/features/code-review/CodeReviewView.svelte';
@@ -20,6 +22,8 @@
 	const app = getApp();
 
 	const reviewerGate = $derived(reviewerNeedsAssignmentGate(app.role));
+
+	const auth = getContext<{ sessionUser: SessionUser | null }>(AUTH_SESSION);
 </script>
 
 <svelte:head>
@@ -51,8 +55,25 @@
 			<div class="mt-auto space-y-2 border-t border-kood-border px-4 py-4 text-xs text-kood-muted lg:border-0 lg:px-0 lg:pb-0">
 				<p class="flex items-center gap-2"><span>🌙</span> Dark</p>
 				<p class="flex items-center gap-2"><span>☕</span> Gitea</p>
-				<p class="flex items-center gap-2"><span>👤</span> Wambui Karanja</p>
-				<p class="text-kood-muted/70">Log out</p>
+				{#if auth.sessionUser}
+					<p class="flex items-center gap-2">
+						<span>👤</span> {auth.sessionUser.username}
+					</p>
+					<form method="post" action="?/signout">
+						<button
+							type="submit"
+							class="text-left text-kood-muted/90 underline decoration-kood-border decoration-dotted hover:text-kood-text"
+						>
+							Log out
+						</button>
+					</form>
+				{:else}
+					<p class="flex items-center gap-2"><span>👤</span> Guest</p>
+					<p class="flex flex-col gap-1">
+						<a class="text-kood-text underline" href="/login">Sign in</a>
+						<a class="text-kood-muted/90 underline" href="/signup">Sign up</a>
+					</p>
+				{/if}
 			</div>
 		</aside>
 
