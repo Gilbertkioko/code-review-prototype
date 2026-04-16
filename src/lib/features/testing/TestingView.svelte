@@ -59,18 +59,20 @@
 	const janeProg = $derived(mandatoryProgressForReviewer('jane'));
 	const joeProg = $derived(mandatoryProgressForReviewer('joe'));
 
-	/** From Joe’s seat: “Joe’s checks” = his completed scope; “Your checks” = the other reviewer (You). */
-	const tabJaneOwnedLabel = $derived(
-		app.role === 'jane' ? 'Your checks' : app.role === 'joe' ? 'Your checks' : 'Reviewer 1'
-	);
-	const tabJoeOwnedLabel = 'Joe’s checks';
+	const tabJaneBucketLabel = $derived(app.role === 'jane' ? 'Your checks' : 'Reviewer 1');
+	const tabJoeBucketLabel = $derived(app.role === 'joe' ? 'Your checks' : 'Joe’s checks');
 	const mandatorySplitBlurb = $derived(
 		app.role === 'jane'
 			? `first ${janeProg.owned} yours · ${joeProg.owned} Joe’s`
 			: app.role === 'joe'
-				? `${janeProg.owned} your checks · ${joeProg.owned} Joe’s`
+				? `${janeProg.owned} for reviewer 1 · ${joeProg.owned} yours`
 				: `${janeProg.owned} for reviewer 1 · ${joeProg.owned} for Joe`
 	);
+
+	const janeBucketHeader = $derived(
+		app.role === 'jane' ? 'Your bucket' : app.role === 'joe' ? 'Reviewer 1 bucket' : 'Reviewer 1 bucket'
+	);
+	const joeBucketHeader = $derived(app.role === 'joe' ? 'Your bucket' : 'Joe’s bucket');
 
 	const janeAcceptPct = $derived(
 		janeProg.owned === 0 ? 0 : (janeProg.accepted / janeProg.owned) * 100
@@ -190,13 +192,13 @@
 		<div class="mt-4 grid gap-4 sm:grid-cols-2">
 			<div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="font-medium text-kood-text">Your bucket</span>
+					<span class="font-medium text-kood-text">{janeBucketHeader}</span>
 					<span class="text-kood-muted">{janeProg.resolved}/{janeProg.owned}</span>
 				</div>
 				<div
 					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
 					role="img"
-					aria-label="Your mandatory checks: {janeProg.accepted} accepted, {janeProg.declined} declined, {janeProg.owned - janeProg.resolved} pending of {janeProg.owned}"
+					aria-label="{janeBucketHeader}: {janeProg.accepted} accepted, {janeProg.declined} declined, {janeProg.owned - janeProg.resolved} pending of {janeProg.owned}"
 				>
 					<div
 						class="h-full bg-kood-accent/55 transition-[width] duration-300"
@@ -210,13 +212,13 @@
 			</div>
 			<div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="font-medium text-kood-text">Joe’s bucket</span>
+					<span class="font-medium text-kood-text">{joeBucketHeader}</span>
 					<span class="text-kood-muted">{joeProg.resolved}/{joeProg.owned}</span>
 				</div>
 				<div
 					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
 					role="img"
-					aria-label="Joe’s mandatory checks: {joeProg.accepted} accepted, {joeProg.declined} declined, {joeProg.owned - joeProg.resolved} pending of {joeProg.owned}"
+					aria-label="{joeBucketHeader}: {joeProg.accepted} accepted, {joeProg.declined} declined, {joeProg.owned - joeProg.resolved} pending of {joeProg.owned}"
 				>
 					<div
 						class="h-full bg-kood-accent/55 transition-[width] duration-300"
@@ -272,13 +274,13 @@
 		>
 			{#if app.role === 'jane'}
 				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows marked for you. Use the other tab (<strong
-					class="text-kood-text/90">{tabJoeOwnedLabel}</strong>) to see Joe’s scope (read-only verdicts; you can still
+					class="text-kood-text/90">{tabJoeBucketLabel}</strong>) to see Joe’s scope (read-only verdicts; you can still
 				comment).
 			{:else}
-				<strong class="text-kood-text">Joe:</strong> <strong class="text-kood-text/90">{tabJoeOwnedLabel}</strong> is your
-				completed mandatory work with Sandra (verdicts read-only here; threads stay visible). <strong
-					class="text-kood-text/90">{tabJaneOwnedLabel}</strong> is your peer’s live scope — read-only verdicts; you can
-				still comment.
+				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows in <strong class="text-kood-text/90"
+					>{tabJoeBucketLabel}</strong
+				>. Use <strong class="text-kood-text/90">{tabJaneBucketLabel}</strong> to read your peer’s scope (read-only
+				verdicts; you can still comment).
 			{/if}
 		</div>
 	{/if}
@@ -294,7 +296,7 @@
 		<div
 			class="mb-3 flex flex-wrap gap-2"
 			role="tablist"
-			aria-label={`${tabJaneOwnedLabel} vs ${tabJoeOwnedLabel} mandatory checks`}
+			aria-label={`${tabJaneBucketLabel} vs ${tabJoeBucketLabel} mandatory checks`}
 		>
 			<button
 				type="button"
@@ -303,7 +305,7 @@
 					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
 				role="tab"
 				aria-selected={mandatoryFilter === 'jane_owned'}
-				onclick={() => setFilter('jane_owned')}>{tabJaneOwnedLabel} ({janeProg.owned})</button
+				onclick={() => setFilter('jane_owned')}>{tabJaneBucketLabel} ({janeProg.owned})</button
 			>
 			<button
 				type="button"
@@ -312,7 +314,7 @@
 					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
 				role="tab"
 				aria-selected={mandatoryFilter === 'joe_owned'}
-				onclick={() => setFilter('joe_owned')}>{tabJoeOwnedLabel} ({joeProg.owned})</button
+				onclick={() => setFilter('joe_owned')}>{tabJoeBucketLabel} ({joeProg.owned})</button
 			>
 		</div>
 

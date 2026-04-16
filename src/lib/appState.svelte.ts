@@ -1,5 +1,7 @@
 import { browser } from '$app/environment';
+import { getActiveCollaboration } from '$lib/collaborationContext';
 import { seedCategorySessionsForJoeDemo, seedTestingItemsForYouJoeDemo } from '$lib/demo/youJoeDemoSeed';
+import { postFormReviewAction } from '$lib/reviewSyncClient';
 import { createFullTestingItems } from '$lib/features/testing/checklist';
 import { CATEGORIES, emptyObservationRowsForCategory, ACADEMY_BASE } from './constants';
 import type {
@@ -108,9 +110,8 @@ function defaultReviewerRatings(): Record<'jane' | 'joe', ReviewerRatingSet> {
 	return { jane: blank(), joe: blank() };
 }
 
-export type Toast = { id: string; message: string };
-
-function createInitialSnapshot() {
+/** Seeded “You & Joe” demo: rich threads + Joe’s categories pre-accepted (admin reset only). */
+function createDemoSeededSnapshot() {
 	return {
 		role: 'sandra' as Role,
 		phase: 'briefing' as Phase,
@@ -128,9 +129,37 @@ function createInitialSnapshot() {
 		reviewerRatings: defaultReviewerRatings(),
 		xpMock: 0,
 		leaderboardNote: 'Feedback feeds XP and the leaderboard (mock).',
-		// Joe skips the assignment checkbox in this demo (work is already reflected).
 		reviewerAssignmentAccepted: { jane: false, joe: true }
 	};
+}
+
+/** Default for signed-in users: both reviewers start fresh; no pre-filled peer progress. */
+function createLiveInitialSnapshot() {
+	return {
+		role: 'sandra' as Role,
+		phase: 'briefing' as Phase,
+		projectStarted: false,
+		submittedForReview: false,
+		testingItems: createFullTestingItems(),
+		testingRound: 1,
+		categorySessions: initialCategorySessions(),
+		codeReviewRound: 1,
+		standupItems: [false, false, false, false, false] as boolean[],
+		standupWhen: '',
+		standupVoiceChannel: '',
+		standupTakeaways: '',
+		sandraRatings: defaultSandraRatings(),
+		reviewerRatings: defaultReviewerRatings(),
+		xpMock: 0,
+		leaderboardNote: 'Feedback feeds XP and the leaderboard (mock).',
+		reviewerAssignmentAccepted: { jane: false, joe: false }
+	};
+}
+
+export type Toast = { id: string; message: string };
+
+function createInitialSnapshot() {
+	return createLiveInitialSnapshot();
 }
 
 type Snapshot = ReturnType<typeof createInitialSnapshot>;
@@ -154,8 +183,7 @@ function normalizeReviewerAssignmentAccepted(
 	const o = parsed as Record<string, unknown>;
 	return {
 		jane: typeof o.jane === 'boolean' ? o.jane : fallback.jane,
-		// Demo: Joe never goes through the assignment checkbox; always treated as accepted.
-		joe: true
+		joe: typeof o.joe === 'boolean' ? o.joe : fallback.joe
 	};
 }
 
@@ -222,6 +250,9 @@ function load(): Snapshot {
 
 const data = $state(load());
 
+/** When set, overrides static `CATEGORIES[].assignee` for paired review rooms. */
+let categoryAssigneeOverride = $state<Record<string, 'jane' | 'joe'> | null>(null);
+
 const toasts = $state<Toast[]>([]);
 
 export function getApp() {
@@ -248,7 +279,7 @@ export function setRole(role: Role) {
 export function confirmStartProject() {
 	data.projectStarted = true;
 	data.phase = 'project_completion';
-	data.reviewerAssignmentAccepted = { jane: false, joe: true };
+	data.reviewerAssignmentAccepted = { jane: false, joe: false };
 	pushToast('Project started — complete the brief, then submit for review.');
 }
 
@@ -260,7 +291,6 @@ export function acceptReviewerAssignment(reviewer: 'jane' | 'joe') {
 export function reviewerNeedsAssignmentGate(role: Role): boolean {
 	if (role !== 'jane' && role !== 'joe') return false;
 	if (!data.projectStarted) return false;
-	if (role === 'joe') return false;
 	return !data.reviewerAssignmentAccepted[role];
 }
 
@@ -278,6 +308,15 @@ export function setTestingVerdict(itemId: string, reviewer: 'jane' | 'joe', verd
 		return;
 	}
 	item[reviewer] = verdict;
+	const collab = getActiveCollaboration();
+	if (collab?.projectId && (verdict === 'accept' || verdict === 'decline')) {
+		void postFormReviewAction('setTestingVerdict', {
+			itemId,
+			persona: reviewer,
+			verdict,
+			testingRound: String(data.testingRound)
+		});
+	}
 }
 
 export function setTestingDraft(
@@ -290,7 +329,7 @@ export function setTestingDraft(
 	item.drafts = { ...item.drafts, [who]: text };
 }
 
-export function postTestingComment(itemId: string) {
+export async function postTestingComment(itemId: string) {
 	const role = data.role;
 	if (role !== 'jane' && role !== 'joe' && role !== 'sandra') return;
 	const item = data.testingItems.find((t) => t.id === itemId);
@@ -299,6 +338,22 @@ export function postTestingComment(itemId: string) {
 	const raw = item.drafts[key]?.trim() ?? '';
 	if (!raw) {
 		pushToast('Write something before posting.');
+		return;
+	}
+	const collab = getActiveCollaboration();
+	if (collab?.projectId) {
+		const ok = await postFormReviewAction('appendTestingMessage', {
+			itemId,
+			authorPersona: role,
+			body: raw,
+			round: String(data.testingRound)
+		});
+		if (!ok.ok) {
+			pushToast('Could not sync comment.');
+			return;
+		}
+		item.drafts = { ...item.drafts, [key]: '' };
+		pushToast(role === 'sandra' ? 'Your note was added for reviewers.' : 'Comment posted.');
 		return;
 	}
 	item.comments.push({
@@ -397,7 +452,13 @@ function session(catId: string): CategorySession {
 	return data.categorySessions[catId];
 }
 
+export function setCategoryAssigneeOverride(map: Record<string, 'jane' | 'joe'> | null) {
+	categoryAssigneeOverride = map;
+}
+
 export function categoryAssignee(catId: string): 'jane' | 'joe' | undefined {
+	const o = categoryAssigneeOverride;
+	if (o && catId in o) return o[catId];
 	return CATEGORIES.find((c) => c.id === catId)?.assignee;
 }
 
@@ -411,7 +472,7 @@ export function codeReviewObservationsList(): CodeReviewListEntry[] {
 				observationId: o.id,
 				categoryTitle: c.title,
 				observationText: o.text,
-				assignee: c.assignee,
+				assignee: categoryAssignee(c.id) ?? c.assignee,
 				academyHint: c.academyHint
 			});
 		}
@@ -435,6 +496,58 @@ export function getCodeReviewObservationRow(
 	};
 }
 
+export function exportCategorySessionsForPersistence(): Record<string, CategorySession> {
+	return JSON.parse(JSON.stringify(data.categorySessions)) as Record<string, CategorySession>;
+}
+
+/** Wrapped payload so the DB stores sprint round + sessions (relational sync uses both). */
+export function exportCodeReviewWorkspaceForPersistence(): {
+	version: 1;
+	codeReviewRound: number;
+	categorySessions: Record<string, CategorySession>;
+} {
+	return {
+		version: 1,
+		codeReviewRound: data.codeReviewRound,
+		categorySessions: exportCategorySessionsForPersistence()
+	};
+}
+
+export function exportTestingStateForPersistence(): { testingRound: number; testingItems: TestingItem[] } {
+	return {
+		testingRound: data.testingRound,
+		testingItems: JSON.parse(JSON.stringify(data.testingItems)) as TestingItem[]
+	};
+}
+
+export function importTestingStateFromServer(patch: unknown) {
+	if (!patch || typeof patch !== 'object') return;
+	const o = patch as Record<string, unknown>;
+	if (typeof o.testingRound === 'number' && o.testingRound >= 1) {
+		data.testingRound = o.testingRound;
+	}
+	if (Array.isArray(o.testingItems)) {
+		data.testingItems = mergeTestingFromStorage(o.testingItems);
+	}
+}
+
+export function importCategorySessionsFromServer(patch: unknown) {
+	if (!patch || typeof patch !== 'object') return;
+	const root = patch as Record<string, unknown>;
+	const sessions =
+		root.categorySessions && typeof root.categorySessions === 'object'
+			? (root.categorySessions as Record<string, CategorySession>)
+			: (patch as Record<string, CategorySession>);
+	if (
+		'categorySessions' in root &&
+		typeof root.codeReviewRound === 'number' &&
+		root.codeReviewRound >= 1
+	) {
+		data.codeReviewRound = root.codeReviewRound;
+	}
+	data.categorySessions = mergeCategorySessions(initialCategorySessions(), sessions);
+}
+
 export function setCodeReviewVerdict(
 	catId: string,
 	obsId: string,
@@ -447,6 +560,16 @@ export function setCodeReviewVerdict(
 	const row = session(catId).observationRows[obsId];
 	if (!row) return;
 	row[reviewer] = decision;
+	const collab = getActiveCollaboration();
+	if (collab?.projectId) {
+		void postFormReviewAction('setCodeReviewVerdict', {
+			categoryId: catId,
+			observationId: obsId,
+			persona: reviewer,
+			verdict: decision,
+			codeReviewRound: String(data.codeReviewRound)
+		});
+	}
 }
 
 export function setCodeReviewDraft(
@@ -466,7 +589,7 @@ export function codeReviewReviewerCommentCount(catId: string, obsId: string): nu
 	return row.comments.filter((c) => c.author === 'jane' || c.author === 'joe').length;
 }
 
-export function postCodeReviewComment(catId: string, obsId: string) {
+export async function postCodeReviewComment(catId: string, obsId: string) {
 	const role = data.role;
 	if (role !== 'jane' && role !== 'joe' && role !== 'sandra') return;
 	const row = session(catId).observationRows[obsId];
@@ -475,6 +598,23 @@ export function postCodeReviewComment(catId: string, obsId: string) {
 	const raw = row.drafts[key]?.trim() ?? '';
 	if (!raw) {
 		pushToast('Write something before posting.');
+		return;
+	}
+	const collab = getActiveCollaboration();
+	if (collab?.projectId) {
+		const ok = await postFormReviewAction('appendCodeReviewMessage', {
+			categoryId: catId,
+			observationId: obsId,
+			authorPersona: role,
+			body: raw,
+			round: String(data.codeReviewRound)
+		});
+		if (!ok.ok) {
+			pushToast('Could not sync comment.');
+			return;
+		}
+		row.drafts = { ...row.drafts, [key]: '' };
+		pushToast(role === 'sandra' ? 'Your note was added for reviewers.' : 'Comment posted.');
 		return;
 	}
 	row.comments.push({
@@ -548,9 +688,10 @@ export function codeReviewProgressForReviewer(reviewer: 'jane' | 'joe'): {
 
 export function allCategoriesComplete(): boolean {
 	for (const c of CATEGORIES) {
+		const assignee = categoryAssignee(c.id) ?? c.assignee;
 		for (const o of c.observations) {
 			const row = session(c.id).observationRows[o.id];
-			if (!row || row[c.assignee] !== 'accept') return false;
+			if (!row || row[assignee] !== 'accept') return false;
 		}
 	}
 	return true;
@@ -611,7 +752,8 @@ export function setReviewerRating(
 export function trainingBlurbFor(reviewer: 'jane' | 'joe'): string {
 	const r = data.sandraRatings.filter((x) => {
 		const cat = CATEGORIES.find((c) => c.id === x.categoryId);
-		return cat?.assignee === reviewer && x.submitted;
+		const assignee = cat ? (categoryAssignee(cat.id) ?? cat.assignee) : undefined;
+		return assignee === reviewer && x.submitted;
 	});
 	const low = r.filter((x) => x.score !== null && x.score <= 2);
 	if (low.length === 0) return 'No critical gaps flagged — great consistency across assigned categories.';
@@ -656,7 +798,7 @@ export function canRevisitPhaseInProgress(stepPhase: Phase, currentPhase: Phase)
 }
 
 export function resetPrototype() {
-	const fresh = createInitialSnapshot();
+	const fresh = createDemoSeededSnapshot();
 	data.role = fresh.role;
 	data.phase = fresh.phase;
 	data.projectStarted = fresh.projectStarted;
@@ -675,7 +817,7 @@ export function resetPrototype() {
 	data.xpMock = fresh.xpMock;
 	data.leaderboardNote = fresh.leaderboardNote;
 	if (browser) localStorage.removeItem(APP_STATE_STORAGE_KEY);
-	pushToast('Prototype reset to defaults.');
+	pushToast('Prototype reset to demo defaults.');
 }
 
 export const PHASE_LABELS: { id: Phase; label: string }[] = [

@@ -10,6 +10,7 @@
 
 <div class="mx-auto max-w-md px-4 py-16 text-kood-text">
 	<h1 class="font-mono text-xl font-semibold">Sign in</h1>
+	<p class="mt-2 text-sm text-kood-muted">Use the email or username you registered with.</p>
 
 	{#if form?.message}
 		<p class="mt-4 rounded border border-red-900/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
@@ -19,13 +20,13 @@
 
 	<form method="post" class="mt-8 space-y-4" use:enhance>
 		<div>
-			<label class="block text-xs font-semibold uppercase tracking-wide text-kood-muted" for="username"
-				>Username</label
+			<label class="block text-xs font-semibold uppercase tracking-wide text-kood-muted" for="identifier"
+				>Email or username</label
 			>
 			<input
 				class="mt-1 w-full rounded border border-kood-border bg-kood-bg px-3 py-2 text-sm"
-				id="username"
-				name="username"
+				id="identifier"
+				name="identifier"
 				autocomplete="username"
 				required
 			/>

@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { CATEGORIES } from '$lib/constants';
-	import { getApp } from '$lib/appState.svelte';
+	import { categoryAssignee, getApp } from '$lib/appState.svelte';
 
 	const app = getApp();
 
-	const janeCats = $derived(CATEGORIES.filter((c) => c.assignee === 'jane').map((c) => c.title));
-	const joeCats = $derived(CATEGORIES.filter((c) => c.assignee === 'joe').map((c) => c.title));
+	const janeCats = $derived(
+		CATEGORIES.filter((c) => categoryAssignee(c.id) === 'jane').map((c) => c.title)
+	);
+	const joeCats = $derived(
+		CATEGORIES.filter((c) => categoryAssignee(c.id) === 'joe').map((c) => c.title)
+	);
 	const myCats = $derived(app.role === 'jane' ? janeCats : joeCats);
-	const peerName = $derived(app.role === 'jane' ? 'Joe' : 'You');
+	const peerName = $derived(app.role === 'jane' ? 'Joe' : 'Reviewer 1');
 	const peerCats = $derived(app.role === 'jane' ? joeCats : janeCats);
 </script>
 

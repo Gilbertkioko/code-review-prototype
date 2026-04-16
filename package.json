@@ -3,14 +3,28 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"engines": {
+		"node": ">=20.18.0 <21"
+	},
+	"volta": {
+		"node": "20.18.3"
+	},
 	"scripts": {
+		"rebuild:sqlite": "npm rebuild better-sqlite3",
 		"dev": "vite dev",
+		"dev:b": "DATABASE_URL=./data/local-b.db vite dev --port 5174",
+		"dev:c": "DATABASE_URL=./data/local-c.db vite dev --port 5175",
 		"build": "vite build",
 		"preview": "vite build && node server.js",
 		"start": "node server.js",
 		"db:push": "drizzle-kit push",
+		"db:push:b": "DATABASE_URL=./data/local-b.db drizzle-kit push",
+		"db:push:c": "DATABASE_URL=./data/local-c.db drizzle-kit push",
+		"db:nuke": "rm -f data/local.db data/local.db-shm data/local.db-wal && npm run db:push",
 		"db:studio": "drizzle-kit studio",
+		"db:rebuild-native": "npm run rebuild:sqlite",
 		"prepare": "svelte-kit sync || echo ''",
+		"postinstall": "npm run rebuild:sqlite",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},

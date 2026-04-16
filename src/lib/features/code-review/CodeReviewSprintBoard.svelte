@@ -4,6 +4,7 @@
 	import {
 		academyUrl,
 		allCategoriesComplete,
+		categoryAssignee,
 		codeReviewObservationsList,
 		codeReviewOwnerAccepted,
 		codeReviewOwnedResolvedCount,
@@ -40,7 +41,7 @@
 		const assignee = filter === 'jane_owned' ? 'jane' : 'joe';
 		const groups: CategoryPage[] = [];
 		for (const c of CATEGORIES) {
-			if (c.assignee !== assignee) continue;
+			if (categoryAssignee(c.id) !== assignee) continue;
 			const entries = fullList.filter((e) => e.categoryId === c.id);
 			if (entries.length > 0) groups.push({ category: c, entries });
 		}
@@ -61,20 +62,23 @@
 	const janeProg = $derived(codeReviewProgressForReviewer('jane'));
 	const joeProg = $derived(codeReviewProgressForReviewer('joe'));
 
-	const janeCategoryCount = $derived(CATEGORIES.filter((c) => c.assignee === 'jane').length);
-	const joeCategoryCount = $derived(CATEGORIES.filter((c) => c.assignee === 'joe').length);
+	const janeCategoryCount = $derived(CATEGORIES.filter((c) => categoryAssignee(c.id) === 'jane').length);
+	const joeCategoryCount = $derived(CATEGORIES.filter((c) => categoryAssignee(c.id) === 'joe').length);
 
-	const tabJaneOwnedLabel = $derived(
-		app.role === 'jane' ? 'Your checks' : app.role === 'joe' ? 'Your checks' : 'Reviewer 1'
-	);
-	const tabJoeOwnedLabel = 'Joe’s checks';
+	const tabJaneBucketLabel = $derived(app.role === 'jane' ? 'Your checks' : 'Reviewer 1');
+	const tabJoeBucketLabel = $derived(app.role === 'joe' ? 'Your checks' : 'Joe’s checks');
 	const codeReviewCategoryBlurb = $derived(
 		app.role === 'jane'
 			? `You ${janeCategoryCount} categories · Joe ${joeCategoryCount} categories`
 			: app.role === 'joe'
-				? `Your ${janeCategoryCount} categories · Joe ${joeCategoryCount} categories`
+				? `Reviewer 1: ${janeCategoryCount} · You ${joeCategoryCount} categories`
 				: `Reviewer 1: ${janeCategoryCount} · Joe: ${joeCategoryCount}`
 	);
+
+	const janeBucketHeader = $derived(
+		app.role === 'jane' ? 'Your bucket' : app.role === 'joe' ? 'Reviewer 1 bucket' : 'Reviewer 1 bucket'
+	);
+	const joeBucketHeader = $derived(app.role === 'joe' ? 'Your bucket' : 'Joe’s bucket');
 
 	const janeAcceptPct = $derived(
 		janeProg.owned === 0 ? 0 : (janeProg.accepted / janeProg.owned) * 100
@@ -179,13 +183,13 @@
 		<div class="mt-4 grid gap-4 sm:grid-cols-2">
 			<div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="font-medium text-kood-text">Your bucket</span>
+					<span class="font-medium text-kood-text">{janeBucketHeader}</span>
 					<span class="text-kood-muted">{janeProg.resolved}/{janeProg.owned}</span>
 				</div>
 				<div
 					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
 					role="img"
-					aria-label="Your observations: {janeProg.accepted} accepted, {janeProg.declined} declined"
+					aria-label="{janeBucketHeader}: {janeProg.accepted} accepted, {janeProg.declined} declined"
 				>
 					<div class="h-full bg-kood-accent/55 transition-[width] duration-300" style="width: {janeAcceptPct}%"></div>
 					<div class="h-full bg-red-500/50 transition-[width] duration-300" style="width: {janeDeclinePct}%"></div>
@@ -193,13 +197,13 @@
 			</div>
 			<div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="font-medium text-kood-text">Joe’s bucket</span>
+					<span class="font-medium text-kood-text">{joeBucketHeader}</span>
 					<span class="text-kood-muted">{joeProg.resolved}/{joeProg.owned}</span>
 				</div>
 				<div
 					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
 					role="img"
-					aria-label="Joe’s observations: {joeProg.accepted} accepted, {joeProg.declined} declined"
+					aria-label="{joeBucketHeader}: {joeProg.accepted} accepted, {joeProg.declined} declined"
 				>
 					<div class="h-full bg-kood-accent/55 transition-[width] duration-300" style="width: {joeAcceptPct}%"></div>
 					<div class="h-full bg-red-500/50 transition-[width] duration-300" style="width: {joeDeclinePct}%"></div>
@@ -249,12 +253,13 @@
 		>
 			{#if app.role === 'jane'}
 				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows in your tab. Use <strong
-					class="text-kood-text/90">{tabJoeOwnedLabel}</strong> to see Joe’s scope (read-only verdicts; you can still
+					class="text-kood-text/90">{tabJoeBucketLabel}</strong> to see Joe’s scope (read-only verdicts; you can still
 				comment).
 			{:else}
-				<strong class="text-kood-text">Joe:</strong> <strong class="text-kood-text/90">{tabJoeOwnedLabel}</strong> is your
-				completed observations (read-only verdicts here). <strong class="text-kood-text/90">{tabJaneOwnedLabel}</strong> is
-				your peer’s live scope — read-only verdicts; you can still comment.
+				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows in <strong class="text-kood-text/90"
+					>{tabJoeBucketLabel}</strong
+				>. Use <strong class="text-kood-text/90">{tabJaneBucketLabel}</strong> to read your peer’s scope (read-only
+				verdicts; you can still comment).
 			{/if}
 		</div>
 	{/if}
@@ -270,7 +275,7 @@
 		<div
 			class="mb-3 flex flex-wrap gap-2"
 			role="tablist"
-			aria-label={`${tabJaneOwnedLabel} vs ${tabJoeOwnedLabel} observation lists`}
+			aria-label={`${tabJaneBucketLabel} vs ${tabJoeBucketLabel} observation lists`}
 		>
 			<button
 				type="button"
@@ -279,7 +284,7 @@
 					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
 				role="tab"
 				aria-selected={filter === 'jane_owned'}
-				onclick={() => setFilter('jane_owned')}>{tabJaneOwnedLabel} ({janeProg.owned})</button
+				onclick={() => setFilter('jane_owned')}>{tabJaneBucketLabel} ({janeProg.owned})</button
 			>
 			<button
 				type="button"
@@ -288,7 +293,7 @@
 					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
 				role="tab"
 				aria-selected={filter === 'joe_owned'}
-				onclick={() => setFilter('joe_owned')}>{tabJoeOwnedLabel} ({joeProg.owned})</button
+				onclick={() => setFilter('joe_owned')}>{tabJoeBucketLabel} ({joeProg.owned})</button
 			>
 		</div>
 
@@ -352,7 +357,15 @@
 						<p class="mt-1 text-xs text-kood-muted">
 							{currentGroup.entries.length}
 							{currentGroup.entries.length === 1 ? 'observation' : 'observations'} · assigned to
-							<strong class="text-kood-text/90">{currentGroup.category.assignee === 'jane' ? 'You' : 'Joe'}</strong>
+							<strong class="text-kood-text/90">
+								{categoryAssignee(currentGroup.category.id) === 'jane'
+									? app.role === 'jane'
+										? 'You'
+										: 'Reviewer 1'
+									: app.role === 'joe'
+										? 'You'
+										: 'Reviewer 2'}
+							</strong>
 						</p>
 					</div>
 					<a

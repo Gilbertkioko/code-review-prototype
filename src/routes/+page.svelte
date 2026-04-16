@@ -1,7 +1,20 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { invalidateAll } from '$app/navigation';
 	import { getContext } from 'svelte';
-	import { getApp, reviewerNeedsAssignmentGate } from '$lib/appState.svelte';
+	import { io } from 'socket.io-client';
+	import { setActiveCollaboration } from '$lib/collaborationContext';
+	import {
+		getApp,
+		importCategorySessionsFromServer,
+		importTestingStateFromServer,
+		reviewerNeedsAssignmentGate,
+		setCategoryAssigneeOverride,
+		setRole
+	} from '$lib/appState.svelte';
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
+	import ReviewProgressSave from '$lib/features/workspace/ReviewProgressSave.svelte';
+	import WorkspaceStrip from '$lib/features/workspace/WorkspaceStrip.svelte';
 	import ProjectBriefing from '$lib/features/briefing/ProjectBriefing.svelte';
 	import ReviewerBriefingWait from '$lib/features/briefing/ReviewerBriefingWait.svelte';
 	import CodeReviewView from '$lib/features/code-review/CodeReviewView.svelte';
@@ -24,6 +37,90 @@
 	const reviewerGate = $derived(reviewerNeedsAssignmentGate(app.role));
 
 	const auth = getContext<{ sessionUser: SessionUser | null }>(AUTH_SESSION);
+
+	let { data } = $props();
+
+	const reviewSaveContext = $derived.by(() => {
+		const w = data.workspace;
+		if (w.kind === 'submitter') {
+			return { project: w.project, canMarkComplete: w.canMarkComplete };
+		}
+		if (w.kind === 'reviewer' && w.project) {
+			return { project: w.project, canMarkComplete: w.canMarkComplete };
+		}
+		return null;
+	});
+
+	let syncedRoomKey = $state('');
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
+		const p = w.kind === 'submitter' ? w.project : w.kind === 'reviewer' ? w.project : null;
+		if (w.kind === 'other' || !p || !w.viewerId) {
+			setActiveCollaboration(null);
+			return () => setActiveCollaboration(null);
+		}
+		setActiveCollaboration({ projectId: p.id, userId: w.viewerId });
+		const socket = io(window.location.origin, { path: '/socket.io', withCredentials: true });
+		socket.emit('joinProject', p.id);
+		const onInvalidate = () => {
+			void invalidateAll();
+		};
+		socket.on('review:invalidate', onInvalidate);
+		return () => {
+			socket.emit('leaveProject', p.id);
+			socket.off('review:invalidate', onInvalidate);
+			socket.disconnect();
+			setActiveCollaboration(null);
+		};
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
+		const r = auth.sessionUser?.role;
+		if (r === 'admin') {
+			setCategoryAssigneeOverride(null);
+			return () => setCategoryAssigneeOverride(null);
+		}
+		if (r === 'submitter' && w.kind === 'submitter') {
+			setRole('sandra');
+			setCategoryAssigneeOverride(w.categoryMap ?? null);
+			return () => setCategoryAssigneeOverride(null);
+		}
+		if (r === 'reviewer' && w.kind === 'reviewer') {
+			if (w.persona === 'jane' || w.persona === 'joe') setRole(w.persona);
+			else setRole('jane');
+			setCategoryAssigneeOverride(w.categoryMap ?? null);
+			return () => setCategoryAssigneeOverride(null);
+		}
+		setCategoryAssigneeOverride(null);
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
+		const p = w.kind === 'submitter' ? w.project : w.kind === 'reviewer' ? w.project : null;
+		if (!p) return;
+		const key = `${p.id}:${p.updatedAt}:${p.codeReviewJson ?? ''}:${p.testingJson ?? ''}`;
+		if (key === syncedRoomKey) return;
+		syncedRoomKey = key;
+		if (p.testingJson) {
+			try {
+				importTestingStateFromServer(JSON.parse(p.testingJson));
+			} catch {
+				/* ignore corrupt snapshot */
+			}
+		}
+		if (p.codeReviewJson) {
+			try {
+				importCategorySessionsFromServer(JSON.parse(p.codeReviewJson));
+			} catch {
+				/* ignore corrupt snapshot */
+			}
+		}
+	});
 </script>
 
 <svelte:head>
@@ -46,18 +143,36 @@
 
 			<div class="mt-6 border-t border-kood-border px-4 py-4 lg:px-0">
 				<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Demo</p>
-				<p class="mt-2 text-xs text-kood-muted">Switch persona for sprint + 360° flows</p>
-				<div class="mt-2">
-					<RoleSwitcher />
-				</div>
+				{#if auth.sessionUser?.role === 'admin'}
+					<p class="mt-2 text-xs text-kood-muted">Switch persona for sprint + 360° flows</p>
+					<div class="mt-2">
+						<RoleSwitcher />
+					</div>
+				{:else if auth.sessionUser}
+					<p class="mt-2 text-xs text-kood-muted">
+						Your account role is fixed — use <strong class="text-kood-text/90">Server sync</strong> when you have a
+						batch to save Testing and Code review threads for the team.
+					</p>
+				{:else}
+					<p class="mt-2 text-xs text-kood-muted">Sign in to use the live workspace.</p>
+				{/if}
 			</div>
 
 			<div class="mt-auto space-y-2 border-t border-kood-border px-4 py-4 text-xs text-kood-muted lg:border-0 lg:px-0 lg:pb-0">
 				<p class="flex items-center gap-2"><span>🌙</span> Dark</p>
 				<p class="flex items-center gap-2"><span>☕</span> Gitea</p>
 				{#if auth.sessionUser}
+					{#if auth.sessionUser.role === 'admin'}
+						<p class="mt-1">
+							<a class="text-kood-accent underline" href="/admin">Admin dashboard</a>
+						</p>
+					{/if}
 					<p class="flex items-center gap-2">
 						<span>👤</span> {auth.sessionUser.username}
+					</p>
+					<p class="break-all text-kood-muted/90">{auth.sessionUser.email}</p>
+					<p class="text-[10px] uppercase tracking-wide text-kood-muted/80">
+						Role: {auth.sessionUser.role}
 					</p>
 					<form method="post" action="?/signout">
 						<button
@@ -78,6 +193,13 @@
 		</aside>
 
 		<main class="min-w-0 flex-1 px-4 py-6 lg:px-10 lg:py-8">
+			<WorkspaceStrip workspace={data.workspace} />
+			{#if reviewSaveContext}
+				<ReviewProgressSave
+					project={reviewSaveContext.project}
+					canMarkComplete={reviewSaveContext.canMarkComplete}
+				/>
+			{/if}
 			{#if app.phase === 'briefing'}
 				{#if app.role === 'sandra'}
 					<ProjectBriefing />
@@ -114,4 +236,6 @@
 </div>
 
 <ToastStack />
-<DevJumpPanel />
+{#if auth.sessionUser?.role === 'admin'}
+	<DevJumpPanel />
+{/if}

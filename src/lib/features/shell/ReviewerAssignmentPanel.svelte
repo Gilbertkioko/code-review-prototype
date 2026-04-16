@@ -1,19 +1,18 @@
 <script lang="ts">
 	import { ACADEMY_BASE, CATEGORIES } from '$lib/constants';
-	import { academyUrl, acceptReviewerAssignment, getApp } from '$lib/appState.svelte';
+	import { academyUrl, acceptReviewerAssignment, categoryAssignee, getApp } from '$lib/appState.svelte';
 
 	const app = getApp();
 
 	const role = $derived(app.role === 'jane' || app.role === 'joe' ? app.role : 'jane');
 	const displayName = $derived(role === 'jane' ? 'You' : 'Joe');
-	const peerName = $derived(role === 'jane' ? 'Joe' : 'You');
+	const peerName = $derived(role === 'jane' ? 'Joe' : 'Reviewer 1');
 
-	const myCategories = $derived(CATEGORIES.filter((c) => c.assignee === role));
+	const myCategories = $derived(CATEGORIES.filter((c) => categoryAssignee(c.id) === role));
 
 	let agreed = $state(false);
 
-	/** You (jane) must tick the box; Joe never does in this demo. */
-	const canContinue = $derived(role === 'joe' || agreed);
+	const canContinue = $derived(agreed);
 
 	function onConfirm() {
 		if (!canContinue) return;
@@ -144,21 +143,14 @@
 			</section>
 
 			<div class="border-t border-kood-border pt-4">
-				{#if role === 'jane'}
-					<label class="flex cursor-pointer items-start gap-3 text-sm text-kood-text/90">
-						<input
-							type="checkbox"
-							class="mt-1 h-4 w-4 shrink-0 rounded border-kood-border bg-kood-surface-raised text-kood-accent focus:ring-kood-accent"
-							bind:checked={agreed}
-						/>
-						<span>I understand my assignment and responsibilities, and I will start reviewing.</span>
-					</label>
-				{:else}
-					<p class="text-sm text-kood-muted">
-						In this prototype Joe is already on the hook—no extra confirmation step. Continue when you want to
-						explore the flow as Joe.
-					</p>
-				{/if}
+				<label class="flex cursor-pointer items-start gap-3 text-sm text-kood-text/90">
+					<input
+						type="checkbox"
+						class="mt-1 h-4 w-4 shrink-0 rounded border-kood-border bg-kood-surface-raised text-kood-accent focus:ring-kood-accent"
+						bind:checked={agreed}
+					/>
+					<span>I understand my assignment and responsibilities, and I will start reviewing.</span>
+				</label>
 				<button
 					type="button"
 					class="mt-4 rounded-full bg-kood-accent px-6 py-2.5 text-sm font-bold text-kood-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
