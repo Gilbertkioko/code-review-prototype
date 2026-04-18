@@ -56,6 +56,6 @@ export const actions: Actions = {
 			...sessionCookie.attributes
 		});
 
-		throw redirect(302, '/');
+		throw redirect(302, existingUser.role === 'admin' ? '/admin' : '/');
 	}
 };
