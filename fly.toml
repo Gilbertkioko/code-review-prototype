@@ -1,0 +1,27 @@
+# After `fly launch`, set app name and region. SQLite needs a persistent volume.
+# Rename `app` to your Fly app name. Create the volume in the same region:
+#   fly volumes create app_data --region arn --size 1
+app = "code-review-prototype"
+primary_region = "arn"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATABASE_URL = "/data/app.db"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[mounts]]
+  source = "app_data"
+  destination = "/data"

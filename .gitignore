@@ -12,6 +12,10 @@ node_modules
 .DS_Store
 Thumbs.db
 
+# SQLite (keep data/ directory; ignore database files)
+data/*.db
+data/*.db-*
+
 # Env
 .env
 .env.*

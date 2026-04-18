@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { CATEGORIES } from '$lib/constants';
-	import { getApp } from '$lib/appState.svelte';
+	import { categoryAssignee, getApp, getPersonaDisplayLabel } from '$lib/appState.svelte';
 
 	const app = getApp();
 
-	const janeCats = $derived(CATEGORIES.filter((c) => c.assignee === 'jane').map((c) => c.title));
-	const joeCats = $derived(CATEGORIES.filter((c) => c.assignee === 'joe').map((c) => c.title));
+	const janeCats = $derived(
+		CATEGORIES.filter((c) => categoryAssignee(c.id) === 'jane').map((c) => c.title)
+	);
+	const joeCats = $derived(
+		CATEGORIES.filter((c) => categoryAssignee(c.id) === 'joe').map((c) => c.title)
+	);
 	const myCats = $derived(app.role === 'jane' ? janeCats : joeCats);
-	const peerName = $derived(app.role === 'jane' ? 'Joe' : 'You');
+	const peerName = $derived(app.role === 'jane' ? getPersonaDisplayLabel('joe') : getPersonaDisplayLabel('jane'));
+	const submitterName = $derived(getPersonaDisplayLabel('sandra'));
 	const peerCats = $derived(app.role === 'jane' ? joeCats : janeCats);
 </script>
 
@@ -18,8 +23,8 @@
 	>
 		<p class="font-semibold text-kood-text">Reviewer · waiting on submitter</p>
 		<p class="mt-1 text-kood-muted">
-			You do <strong class="text-kood-text/90">not</strong> start this project. Only the submitter (Sandra in this
-			demo) presses <strong class="text-kood-text/90">Start</strong> on Mobile Messenger.
+			You do <strong class="text-kood-text/90">not</strong> start this project. Only the submitter ({submitterName})
+			presses <strong class="text-kood-text/90">Start</strong> on Mobile Messenger.
 		</p>
 	</div>
 
@@ -28,14 +33,14 @@
 		<p class="mt-2 text-sm text-kood-muted">
 			When the journey begins, you’ll get an in-app assignment with your categories and responsibilities. Until then,
 			you can read the brief from the module list like any other learner — but the phased workflow unlocks for you
-			after Sandra starts.
+			after {submitterName} starts.
 		</p>
 	</header>
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
 		<h2 class="text-sm font-semibold text-kood-text">Your review scope (preview)</h2>
 		<p class="mt-2 text-sm text-kood-muted">
-			After Sandra starts, you’ll confirm this officially in the assignment panel.
+			After {submitterName} starts, you’ll confirm this officially in the assignment panel.
 		</p>
 		<ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-kood-text/90">
 			{#each myCats as t (t)}

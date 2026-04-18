@@ -1,0 +1,9 @@
+node_modules
+.svelte-kit
+build
+.git
+data/*.db
+data/*.db-*
+.env
+.env.*
+*.md
