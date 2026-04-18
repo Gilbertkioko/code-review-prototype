@@ -12,6 +12,8 @@ import {
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
+export const runtime = 'nodejs';
+
 function categoryTitle(id: string): string {
 	return CATEGORIES.find((c) => c.id === id)?.title ?? id;
 }
