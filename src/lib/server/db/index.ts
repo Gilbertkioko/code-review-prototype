@@ -3,45 +3,8 @@ import { sql } from 'drizzle-orm';
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
 import { mkdirSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
-import { fetch as undiciFetch } from 'undici';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
-
-/** Hrana calls `fetch(request)` with a `cross-fetch` Request; Undici needs `fetch(url, init)`. */
-function fetchForLibsql(input: unknown, init?: RequestInit): Promise<Response> {
-	if (
-		init === undefined &&
-		typeof input === 'object' &&
-		input !== null &&
-		typeof (input as { url?: unknown }).url === 'string'
-	) {
-		const r = input as Request;
-		const next: RequestInit = {
-			method: r.method,
-			headers: copyHeadersForUndici(r.headers),
-			body: r.body
-		};
-		const sig = (r as { signal?: AbortSignal }).signal;
-		if (sig) next.signal = sig;
-		if (next.body !== undefined && next.body !== null && isReadableStream(next.body)) {
-			(next as { duplex?: 'half' }).duplex = 'half';
-		}
-		return undiciFetch(r.url, next as never) as unknown as Promise<Response>;
-	}
-	return undiciFetch(input as never, init as never) as unknown as Promise<Response>;
-}
-
-function isReadableStream(x: unknown): boolean {
-	return typeof ReadableStream !== 'undefined' && x instanceof ReadableStream;
-}
-
-function copyHeadersForUndici(src: Headers): Headers {
-	const dst = new Headers();
-	src.forEach((value, key) => {
-		dst.append(key, value);
-	});
-	return dst;
-}
 
 export type AppDatabase = LibSQLDatabase<typeof schema>;
 
@@ -50,8 +13,7 @@ type LibsqlGlobal = typeof globalThis & {
 };
 
 function resolveDatabaseUrl(): string {
-	// Use || so an empty TURSO_DATABASE_URL in Vercel does not block DATABASE_URL (?? only skips null/undefined).
-	const raw = (env.TURSO_DATABASE_URL?.trim() || env.DATABASE_URL?.trim()) ?? '';
+	const raw = (env.TURSO_DATABASE_URL ?? env.DATABASE_URL)?.trim();
 	if (!raw) {
 		throw new Error(
 			'[db] Set TURSO_DATABASE_URL (Turso / libSQL) or DATABASE_URL. Examples: libsql://your-db.turso.io, file:./data/local.db'
@@ -69,30 +31,15 @@ function ensureFileDatabaseDirectory(url: string) {
 }
 
 function connectionKey(url: string): string {
-	const token = env.TURSO_AUTH_TOKEN?.trim() || '';
+	const token = env.TURSO_AUTH_TOKEN ?? '';
 	return `${url}\0${token}`;
-}
-
-function usesRemoteLibsql(url: string): boolean {
-	const u = url.toLowerCase();
-	return (
-		u.startsWith('libsql:') ||
-		u.startsWith('http:') ||
-		u.startsWith('https:') ||
-		u.startsWith('ws:') ||
-		u.startsWith('wss:')
-	);
 }
 
 function createLibsqlClient(url: string): Client {
 	ensureFileDatabaseDirectory(url);
-	// Vercel replaces global `fetch` with a Response whose body often lacks `.cancel()`, which breaks
-	// @libsql/hrana-client error handling (see stream.js `resp.body?.cancel`). Undici matches WHATWG streams,
-	// but hrana passes a cross-fetch `Request`, so we unwrap to `url` + `init` before calling Undici.
 	return createClient({
 		url,
-		authToken: env.TURSO_AUTH_TOKEN?.trim() || undefined,
-		...(usesRemoteLibsql(url) ? { fetch: fetchForLibsql as Function } : {})
+		authToken: env.TURSO_AUTH_TOKEN || undefined
 	});
 }
 
@@ -150,28 +97,13 @@ let initOnce: Promise<void> | undefined;
 export function initDatabase(): Promise<void> {
 	if (!initOnce) {
 		initOnce = (async () => {
-			const url = resolveDatabaseUrl();
 			const db = getDb();
-			let rows: Awaited<ReturnType<AppDatabase['all']>>;
-			try {
-				rows = await db.all(
-					sql`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user' LIMIT 1`
-				);
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
-				if (msg.includes('404') && usesRemoteLibsql(url)) {
-					throw new Error(
-						'[db] Turso HTTP 404: URL or token does not match any database (wrong env, revoked token, or deleted DB). Not caused by an empty schema—Turso still returns 200 for an empty DB; you would then get a "no tables" error instead. Set Vercel Production TURSO_DATABASE_URL + TURSO_AUTH_TOKEN from Turso → Connect. Then from your laptop: DATABASE_URL=<libsql url> TURSO_AUTH_TOKEN=<token> npm run db:push'
-					);
-				}
-				throw e;
-			}
+			const rows = await db.all(
+				sql`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user' LIMIT 1`
+			);
 			if (!rows.length) {
-				const hint = url.startsWith('file:/data/')
-					? ' On Fly.io with a mounted volume, open a shell on the machine and run: `cd /app && DATABASE_URL=/data/app.db npx drizzle-kit push` (release VMs do not see your volume).'
-					: '';
 				throw new Error(
-					`[db] Database has no tables yet. Run \`npm run db:push\` for this DATABASE_URL (local file or Turso), then restart.${hint}`
+					'[db] Database has no tables yet. Apply the schema with `npm run db:push` (Turso) or reset a local file DB, set env, then start again.'
 				);
 			}
 		})();
