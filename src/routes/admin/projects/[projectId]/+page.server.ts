@@ -24,14 +24,14 @@ function observationSnippet(categoryId: string, observationId: string): string {
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-	const projectRow = getProjectById(params.projectId);
+	const projectRow = await getProjectById(params.projectId);
 	if (!projectRow) error(404, 'Not found');
-	const pair = getPairForProject(params.projectId);
+	const pair = await getPairForProject(params.projectId);
 
-	const tp = listTestingItemProgressForProject(params.projectId);
-	const tm = listTestingThreadMessagesForProject(params.projectId);
-	const cp = listCodeReviewObservationProgressForProject(params.projectId);
-	const cm = listCodeReviewThreadMessagesForProject(params.projectId);
+	const tp = await listTestingItemProgressForProject(params.projectId);
+	const tm = await listTestingThreadMessagesForProject(params.projectId);
+	const cp = await listCodeReviewObservationProgressForProject(params.projectId);
+	const cm = await listCodeReviewThreadMessagesForProject(params.projectId);
 
 	let testingThreads: AuditThreadEntry[];
 	if (tm.length > 0) {
