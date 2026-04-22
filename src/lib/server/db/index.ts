@@ -3,44 +3,30 @@ import { sql } from 'drizzle-orm';
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
 import { mkdirSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
+import { fetch as undiciFetch } from 'undici';
+import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
 
 export type AppDatabase = LibSQLDatabase<typeof schema>;
 
-type LibsqlGlobal = typeof globalThis & {
-	__koodLibsql?: { key: string; client: Client; db: AppDatabase };
+type SqliteGlobal = typeof globalThis & {
+	__koodSqlite?: { path: string; sqlite: Database.Database; db: DrizzleDb };
+	__koodBuildDb?: DrizzleDb;
 };
 
-function resolveDatabaseUrl(): string {
-	const raw = (env.TURSO_DATABASE_URL ?? env.DATABASE_URL)?.trim();
-	if (!raw) {
-		throw new Error(
-			'[db] Set TURSO_DATABASE_URL (Turso / libSQL) or DATABASE_URL. Examples: libsql://your-db.turso.io, file:./data/local.db'
-		);
-	}
-	if (raw.startsWith('file:') || /^\w+:\/\//.test(raw)) return raw;
-	return `file:${raw}`;
+/** In-memory DB used only while SvelteKit runs static analysis (`vite build`); no migrations, no disk. */
+function getBuildPlaceholderDb(): DrizzleDb {
+	const g = globalThis as SqliteGlobal;
+	if (g.__koodBuildDb) return g.__koodBuildDb;
+	const sqlite = new Database(':memory:');
+	sqlite.pragma('foreign_keys = ON');
+	g.__koodBuildDb = drizzle(sqlite, { schema });
+	return g.__koodBuildDb;
 }
 
-function ensureFileDatabaseDirectory(url: string) {
-	if (!url.startsWith('file:')) return;
-	const pathPart = url.slice('file:'.length);
-	const abs = isAbsolute(pathPart) ? pathPart : resolve(process.cwd(), pathPart);
-	mkdirSync(dirname(abs), { recursive: true });
-}
-
-function connectionKey(url: string): string {
-	const token = env.TURSO_AUTH_TOKEN ?? '';
-	return `${url}\0${token}`;
-}
-
-function createLibsqlClient(url: string): Client {
-	ensureFileDatabaseDirectory(url);
-	return createClient({
-		url,
-		authToken: env.TURSO_AUTH_TOKEN || undefined
-	});
+function databasePath(): string {
+	return env.DATABASE_URL ?? './data/local.db';
 }
 
 /** Survives Vite SSR HMR so we do not open/close the client on every module reload. */
@@ -68,9 +54,11 @@ let moduleClient: Client | undefined;
 let moduleDb: AppDatabase | undefined;
 let moduleKey: string | undefined;
 
-export function getDb(): AppDatabase {
-	const url = resolveDatabaseUrl();
-	const key = connectionKey(url);
+export function getDb() {
+	if (building) {
+		return getBuildPlaceholderDb();
+	}
+	const url = databasePath();
 	const useGlobalCache = process.env.NODE_ENV !== 'production';
 	if (useGlobalCache) {
 		return getOrCreateFromGlobal(url);
