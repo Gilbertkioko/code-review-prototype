@@ -26,7 +26,6 @@
 		"db:studio": "node scripts/check-node-drizzle-push.mjs && drizzle-kit studio",
 		"postinstall": "patch-package && node scripts/postinstall-sqlite.mjs",
 		"prepare": "svelte-kit sync || echo ''",
-		"postinstall": "node scripts/postinstall-sqlite.mjs",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},

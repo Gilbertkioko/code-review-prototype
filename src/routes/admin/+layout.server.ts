@@ -7,7 +7,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') {
 		throw redirect(302, '/');
 	}
-	const rows = listProjectsWithSubmittersForAdmin();
+	const rows = await listProjectsWithSubmittersForAdmin();
 	const adminProjects = rows.map((p) => ({
 		id: p.id,
 		themeTitle: PROJECT_THEME_DISPLAY,

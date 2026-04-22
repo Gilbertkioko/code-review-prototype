@@ -3,7 +3,7 @@ import { createFullTestingItems, withMandatoryOwners } from '$lib/features/testi
 import type { CategorySession, TestingDecision, TestingItem } from '$lib/types';
 import { and, eq } from 'drizzle-orm';
 import { generateIdFromEntropySize } from 'lucia';
-import { broadcastToProject } from '../../../socket-setup.mjs';
+import { broadcastToProject, broadcastToRole } from '../../../socket-setup.mjs';
 import { getDb } from './db';
 import {
 	codeReviewObservationProgress,
@@ -36,6 +36,11 @@ export type SubmissionProgress = (typeof SUBMISSION_PROGRESS_VALUES)[number];
 
 export function notifyProjectReviewUpdate(projectId: string) {
 	broadcastToProject(projectId, 'review:invalidate', { projectId });
+}
+
+/** Push admin dashboard / layout loaders to refresh (project list, pairing, etc.). */
+export function notifyAdminDashboard() {
+	broadcastToRole('admin', 'workspace:invalidate', {});
 }
 
 async function testingMandatoryAllAccepted(projectId: string): Promise<boolean> {

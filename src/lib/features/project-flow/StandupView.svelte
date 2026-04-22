@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 	import {
@@ -16,6 +16,7 @@
 		toggleStandup
 	} from '$lib/appState.svelte';
 	import { formatShortTimestamp } from '$lib/features/testing/testingUtils';
+	import type { StandupTakeawayMessage } from '$lib/types';
 
 	type Proj = { id: string; status: string };
 
@@ -28,7 +29,9 @@
 	/** Submitter + both reviewers can post takeaway bubbles and publish the thread. */
 	const canEditTakeaways = $derived(isSubmitter || isReviewer);
 
-	const takeawayThread = $derived(app.standupTakeawayMessages);
+	const takeawayThread = $derived(
+		[...app.standupTakeawayMessages].sort((a, b) => a.at.localeCompare(b.at))
+	);
 
 	/** Any linked project row — do not gate on status (standup can run while status still matches review flow). */
 	const canPublishToServer = $derived(Boolean(project?.id));
@@ -48,58 +51,101 @@
 	const maxTakeawayChars = 2000;
 
 	let takeawayDraft = $state('');
+	let threadSaving = $state(false);
+	let threadScrollEl: HTMLDivElement | undefined = $state();
 
-	let saveForm: HTMLFormElement | undefined = $state();
-	let testingField: HTMLInputElement | undefined = $state();
-	let codeField: HTMLInputElement | undefined = $state();
+	function dayKey(iso: string): string {
+		const d = new Date(iso);
+		if (Number.isNaN(d.getTime())) return '';
+		return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+	}
+
+	function dayChipLabel(iso: string): string {
+		const d = new Date(iso);
+		if (Number.isNaN(d.getTime())) return '—';
+		const today = new Date();
+		const sameDay = (x: Date, y: Date) =>
+			x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+		if (sameDay(d, today)) return 'Today';
+		const y = new Date(today);
+		y.setDate(y.getDate() - 1);
+		if (sameDay(d, y)) return 'Yesterday';
+		return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
+	function bubbleClasses(m: StandupTakeawayMessage): string {
+		const own = m.author === app.role;
+		const base =
+			'max-w-[min(100%,20rem)] rounded-2xl px-3 py-2 text-sm shadow-sm ' +
+			(own ? 'rounded-br-md ' : 'rounded-bl-md ');
+		if (own) {
+			return `${base} bg-kood-accent/25 text-kood-text ring-1 ring-kood-accent/35`;
+		}
+		if (m.author === 'sandra') {
+			return `${base} bg-amber-500/[0.12] text-kood-text/95 ring-1 ring-amber-400/40`;
+		}
+		if (m.author === 'jane') {
+			return `${base} bg-kood-accent/[0.12] text-kood-text/95 ring-1 ring-kood-accent/35`;
+		}
+		return `${base} bg-violet-500/[0.1] text-kood-text/95 ring-1 ring-violet-400/40`;
+	}
+
+	async function saveReviewStateToServer(): Promise<boolean> {
+		const pid = project?.id;
+		if (!pid || !browser) return false;
+		const fd = new FormData();
+		fd.set('projectId', pid);
+		fd.set('testingPayload', JSON.stringify(exportTestingStateForPersistence()));
+		fd.set('codeReviewPayload', JSON.stringify(exportCodeReviewWorkspaceForPersistence()));
+		try {
+			const res = await fetch('?/saveReviewState', { method: 'POST', body: fd, credentials: 'include' });
+			if (res.ok) await invalidateAll();
+			return res.ok;
+		} catch {
+			return false;
+		}
+	}
 
 	async function submitStandupToServer() {
 		await tick();
-		const t = testingField;
-		const c = codeField;
-		const f = saveForm;
-		const pid = project?.id;
-		if (!pid) {
+		if (!project?.id) {
 			pushToast('No project linked — open this screen from your assigned review (signed-in submitter or reviewer).');
 			return;
 		}
-		if (!t || !c || !f) {
-			pushToast('Save form is not ready — refresh the page and try again.');
+		threadSaving = true;
+		const ok = await saveReviewStateToServer();
+		threadSaving = false;
+		if (ok) pushToast('Saved to server — everyone sees this after refresh.');
+		else pushToast('Save failed — check you are logged in and try again.');
+	}
+
+	async function postTakeaway() {
+		if (!takeawayDraft.trim()) return;
+		const draft = takeawayDraft;
+		addStandupTakeawayMessage(draft);
+		takeawayDraft = '';
+		await tick();
+		if (!project?.id) {
+			pushToast('Posted in this browser only — open from a linked project to save for the team.');
 			return;
 		}
-		t.value = JSON.stringify(exportTestingStateForPersistence());
-		c.value = JSON.stringify(exportCodeReviewWorkspaceForPersistence());
-		f.requestSubmit();
+		if (!browser) return;
+		threadSaving = true;
+		const ok = await saveReviewStateToServer();
+		threadSaving = false;
+		if (ok) pushToast('Posted — synced for everyone.');
+		else pushToast('Posted here, but sync failed — try “Sync to server” below.');
 	}
 
-	function postTakeaway() {
-		addStandupTakeawayMessage(takeawayDraft);
-		takeawayDraft = '';
-	}
+	$effect(() => {
+		takeawayThread.length;
+		queueMicrotask(() => {
+			const el = threadScrollEl;
+			if (!el) return;
+			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		});
+	});
 </script>
-
-<!-- Full testing + code review JSON (includes standup block); all Publish buttons use this. -->
-<form
-	bind:this={saveForm}
-	method="post"
-	action="?/saveReviewState"
-	class="hidden"
-	use:enhance={() => {
-		return async ({ result, update }) => {
-			await update();
-			if (result.type === 'success') {
-				pushToast('Saved to server — others will see it after refresh.');
-			} else if (result.type === 'failure') {
-				pushToast('Save failed — check you are logged in and try again.');
-			}
-			await invalidateAll();
-		};
-	}}
->
-	<input type="hidden" name="projectId" value={project?.id ?? ''} />
-	<input bind:this={testingField} type="hidden" name="testingPayload" value="" />
-	<input bind:this={codeField} type="hidden" name="codeReviewPayload" value="" />
-</form>
 
 <div class="max-w-2xl space-y-8">
 	<header class="space-y-2">
@@ -145,7 +191,8 @@
 			{#if canPublishToServer}
 				<button
 					type="button"
-					class="mt-3 rounded-lg bg-kood-accent px-4 py-2 text-sm font-semibold text-kood-accent-foreground hover:opacity-95"
+					class="mt-3 rounded-lg bg-kood-accent px-4 py-2 text-sm font-semibold text-kood-accent-foreground hover:opacity-95 disabled:opacity-40"
+					disabled={threadSaving}
 					onclick={() => submitStandupToServer()}>Publish meeting details</button
 				>
 				<p class="mt-2 text-[11px] text-kood-muted/85">
@@ -211,73 +258,120 @@
 		<p class="mt-2 text-xs text-kood-muted">
 			Good notes speed up learning and future reviews. Be clear, specific, and actionable.
 		</p>
-		<p class="mt-3 text-xs font-medium text-kood-text/90">Takeaways thread</p>
-		<p class="mt-1 text-[11px] text-kood-muted">
-			Each person posts their own message; everyone sees the thread. Publish so others load it from the server.
-		</p>
 
 		<div
-			class="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-lg border border-kood-border bg-kood-bg/40 px-2 py-2"
-			role="log"
-			aria-label="Standup takeaway messages"
+			class="mt-4 overflow-hidden rounded-2xl border border-kood-border bg-[linear-gradient(180deg,rgba(0,0,0,0.06)_0%,transparent_12rem)] ring-1 ring-kood-border/60"
 		>
-			{#if takeawayThread.length === 0}
-				<p class="px-2 py-4 text-center text-xs text-kood-muted">No takeaways yet — be the first to post below.</p>
-			{:else}
-				{#each takeawayThread as m (m.id)}
-					<div class="flex {m.author === app.role ? 'justify-end' : 'justify-start'}">
-						<div
-							class="max-w-[min(100%,22rem)] rounded-lg px-3 py-2 text-sm {m.author === app.role
-								? 'bg-kood-accent/20 text-kood-text'
-								: 'bg-kood-surface-raised text-kood-text/90 ring-1 ring-kood-border'}"
-						>
-							<div class="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-[10px] text-kood-muted">
-								<span class="font-semibold text-kood-text/80">{getPersonaDisplayLabel(m.author)}</span>
-								<span>{m.at ? formatShortTimestamp(m.at) : '—'}</span>
-							</div>
-							<p class="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{m.text}</p>
-						</div>
-					</div>
-				{/each}
-			{/if}
-		</div>
-
-		{#if canEditTakeaways}
-			<div class="mt-4 rounded-lg border border-kood-border border-dashed bg-kood-bg/30 p-3">
-				<label class="text-[11px] font-medium text-kood-muted" for="standup-takeaway-draft">Your takeaway</label>
-				<textarea
-					id="standup-takeaway-draft"
-					rows="3"
-					class="mt-1 w-full resize-y rounded-md border border-kood-border bg-kood-bg px-2.5 py-2 text-sm text-kood-text placeholder:text-kood-muted/60"
-					maxlength={maxTakeawayChars}
-					placeholder="Add your note for the thread…"
-					bind:value={takeawayDraft}
-				></textarea>
-				<p class="mt-1 text-right text-[11px] text-kood-muted">{takeawayDraft.length} / {maxTakeawayChars}</p>
-				<div class="mt-2 flex flex-wrap gap-2">
-					<button
-						type="button"
-						class="rounded-lg bg-kood-surface-raised px-3 py-1.5 text-xs font-semibold text-kood-text ring-1 ring-kood-border hover:bg-kood-bg"
-						disabled={!takeawayDraft.trim()}
-						onclick={() => postTakeaway()}>Post to thread</button
-					>
+			<div class="border-b border-kood-border/80 bg-kood-bg/50 px-4 py-2.5">
+				<p class="text-xs font-semibold text-kood-text/90">Team takeaways</p>
+				<p class="mt-0.5 text-[11px] leading-snug text-kood-muted">
 					{#if canPublishToServer}
-						<button
-							type="button"
-							class="rounded-lg bg-kood-accent px-3 py-1.5 text-xs font-semibold text-kood-accent-foreground hover:opacity-95"
-							onclick={() => submitStandupToServer()}>Publish thread to server</button
-						>
+						Messages save to the project automatically after you send (same as testing / code review sync). Everyone
+						sees the same thread after refresh.
+					{:else}
+						Each person posts their own bubble. Open this flow from a linked project while signed in so posts sync
+						for the team.
 					{/if}
-				</div>
-				{#if !canPublishToServer}
-					<p class="mt-2 text-[11px] text-amber-400/90">
-						Sign in on a paired project to publish the thread so others see it after refresh.
-					</p>
+				</p>
+				<p class="mt-2 flex flex-wrap gap-3 text-[10px] text-kood-muted">
+					<span class="inline-flex items-center gap-1.5"
+						><span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400/85" aria-hidden="true"></span>
+						{getPersonaDisplayLabel('sandra')}</span
+					>
+					<span class="inline-flex items-center gap-1.5"
+						><span class="inline-block h-2.5 w-2.5 rounded-full bg-kood-accent" aria-hidden="true"></span>
+						{getPersonaDisplayLabel('jane')}</span
+					>
+					<span class="inline-flex items-center gap-1.5"
+						><span class="inline-block h-2.5 w-2.5 rounded-full bg-violet-400/85" aria-hidden="true"></span>
+						{getPersonaDisplayLabel('joe')}</span
+					>
+				</p>
+			</div>
+
+			<div
+				bind:this={threadScrollEl}
+				class="max-h-[min(22rem,55vh)] space-y-2 overflow-y-auto bg-kood-bg/35 px-3 py-3"
+				role="log"
+				aria-label="Standup takeaway messages"
+				aria-live="polite"
+			>
+				{#if takeawayThread.length === 0}
+					<div class="flex min-h-[11rem] flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+						<p class="text-sm text-kood-muted/90">No messages yet</p>
+						<p class="max-w-xs text-[11px] text-kood-muted/80">
+							Start the thread — when you’re on a linked project, each send is stored for reviewers and submitter
+							alike.
+						</p>
+					</div>
+				{:else}
+					{#each takeawayThread as m, i (m.id)}
+						{#if i === 0 || dayKey(m.at) !== dayKey(takeawayThread[i - 1].at)}
+							<div class="flex justify-center py-1">
+								<span
+									class="rounded-full bg-kood-surface-raised/90 px-3 py-0.5 text-[10px] font-medium uppercase tracking-wide text-kood-muted ring-1 ring-kood-border/70"
+								>
+									{dayChipLabel(m.at)}
+								</span>
+							</div>
+						{/if}
+						<div class="flex w-full flex-col gap-0.5 {m.author === app.role ? 'items-end' : 'items-start'}">
+							<div class="max-w-[min(92%,22rem)] px-1 text-[10px] text-kood-muted/90">
+								<span class="font-semibold text-kood-text/75">{getPersonaDisplayLabel(m.author)}</span>
+								{#if m.author === app.role}
+									<span class="text-kood-accent"> · You</span>
+								{/if}
+							</div>
+							<div class="flex {m.author === app.role ? 'justify-end' : 'justify-start'} w-full">
+								<div class={bubbleClasses(m)}>
+									<p class="whitespace-pre-wrap text-[13px] leading-relaxed">{m.text}</p>
+									<p class="mt-1.5 text-right text-[10px] tabular-nums text-kood-muted/85">
+										{m.at ? formatShortTimestamp(m.at) : '—'}
+									</p>
+								</div>
+							</div>
+						</div>
+					{/each}
 				{/if}
 			</div>
-		{:else}
-			<p class="mt-3 text-xs text-kood-muted/90">Read-only: only the submitter and paired reviewers can post here.</p>
-		{/if}
+
+			{#if canEditTakeaways}
+				<div class="border-t border-kood-border/80 bg-kood-surface/90 p-3">
+					<label class="sr-only" for="standup-takeaway-draft">Your takeaway message</label>
+					<div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+						<textarea
+							id="standup-takeaway-draft"
+							rows="2"
+							class="min-h-[2.75rem] flex-1 resize-y rounded-xl border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted/55 focus:outline-none focus:ring-2 focus:ring-kood-accent/40"
+							maxlength={maxTakeawayChars}
+							placeholder="Type a takeaway…"
+							bind:value={takeawayDraft}
+						></textarea>
+						<button
+							type="button"
+							class="shrink-0 rounded-xl bg-kood-accent px-4 py-2.5 text-sm font-semibold text-kood-accent-foreground hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40"
+							disabled={!takeawayDraft.trim() || threadSaving}
+							onclick={() => postTakeaway()}>{threadSaving ? 'Saving…' : 'Send'}</button
+						>
+					</div>
+					<div class="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-kood-muted">
+						<span>{takeawayDraft.length} / {maxTakeawayChars}</span>
+						{#if canPublishToServer}
+							<button
+								type="button"
+								class="text-kood-accent underline decoration-dotted underline-offset-2 hover:opacity-90 disabled:opacity-40"
+								disabled={threadSaving}
+								onclick={() => submitStandupToServer()}>Sync meeting details &amp; checklist now</button
+							>
+						{/if}
+					</div>
+				</div>
+			{:else}
+				<div class="border-t border-kood-border/80 bg-kood-bg/25 px-4 py-3">
+					<p class="text-xs text-kood-muted/90">Read-only: only the submitter and paired reviewers can post here.</p>
+				</div>
+			{/if}
+		</div>
 	</section>
 
 	<div>
@@ -300,7 +394,8 @@
 			{#if canPublishToServer}
 				<button
 					type="button"
-					class="mt-4 rounded-lg border border-kood-border bg-kood-bg px-4 py-2 text-sm font-medium text-kood-text hover:bg-kood-surface-raised"
+					class="mt-4 rounded-lg border border-kood-border bg-kood-bg px-4 py-2 text-sm font-medium text-kood-text hover:bg-kood-surface-raised disabled:opacity-40"
+					disabled={threadSaving}
 					onclick={() => submitStandupToServer()}>Publish checklist progress</button
 				>
 				<p class="mt-2 text-[11px] text-kood-muted/85">

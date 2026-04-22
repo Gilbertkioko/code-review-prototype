@@ -43,13 +43,6 @@
 				<span class="text-kood-muted">Submitter:</span>
 				<span class="font-medium">{data.submitterName}</span>
 			</li>
-	<div class="mt-5 rounded-lg border border-kood-border/80 bg-kood-bg/40 p-4 text-sm">
-		<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">People on this batch</p>
-		<ul class="mt-2 space-y-1.5 text-kood-text/90">
-			<li>
-				<span class="text-kood-muted">Submitter:</span>
-				<span class="font-medium">{data.submitterName}</span>
-			</li>
 			{#if data.pair}
 				<li>
 					<span class="text-kood-muted">Reviewer A — Security + Correctness (stored as <code class="font-mono text-[10px]">jane</code>):</span>
