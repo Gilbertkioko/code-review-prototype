@@ -128,6 +128,7 @@
 			standupWhen: app.standupWhen,
 			standupVoiceChannel: app.standupVoiceChannel,
 			standupTakeaways: app.standupTakeaways,
+			standupTakeawayMessages: app.standupTakeawayMessages,
 			sandraRatings: app.sandraRatings,
 			reviewerRatings: app.reviewerRatings,
 			xpMock: app.xpMock,
