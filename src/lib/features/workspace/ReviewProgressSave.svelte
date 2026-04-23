@@ -29,16 +29,8 @@
 </script>
 
 <section class="mb-8 rounded-xl border border-kood-border bg-kood-surface/60 p-4">
-	<div class="flex flex-wrap items-end justify-between gap-3 border-b border-kood-border pb-3">
-		<div>
-			<h2 class="text-sm font-semibold text-kood-text">Server sync</h2>
-			<p class="mt-1 max-w-xl text-xs text-kood-muted">
-				The threads under <strong class="text-kood-text/90">Testing</strong> and
-				<strong class="text-kood-text/90">Code review</strong> (comments, accept/decline, rounds) live in the prototype
-				UI. Use this to push your current copy to the database so the submitter, both reviewers, and admins see the
-				same saved state.
-			</p>
-		</div>
+	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-kood-border pb-3">
+		<h2 class="text-sm font-semibold text-kood-text">Server sync</h2>
 		{#if showSave}
 			<div class="flex flex-wrap gap-2">
 				<button

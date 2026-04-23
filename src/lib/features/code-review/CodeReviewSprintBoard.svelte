@@ -221,50 +221,23 @@
 		</p>
 	</section>
 
-	<div
-		class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-kood-border bg-kood-surface px-3 py-2"
-	>
-		<p class="text-xs text-kood-muted">
-			Chevron to expand is on the <strong class="text-kood-text/80">right</strong> of each row.
-		</p>
-		<div class="flex flex-wrap gap-2">
-			<button
-				type="button"
-				class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
-				onclick={expandAll}>Expand all</button
-			>
-			<button
-				type="button"
-				class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
-				onclick={collapseAll}>Collapse all</button
-			>
-		</div>
+	<div class="flex flex-wrap justify-end gap-2">
+		<button
+			type="button"
+			class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
+			onclick={expandAll}>Expand all</button
+		>
+		<button
+			type="button"
+			class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
+			onclick={collapseAll}>Collapse all</button
+		>
 	</div>
 
 	{#if isSandra}
-		<div
-			class="rounded-lg border border-kood-border bg-kood-surface px-4 py-3 text-sm text-kood-text/90"
-			role="status"
-		>
-			<strong class="text-kood-text">Submitter:</strong> read-only verdicts; expand a row for the full thread. Use
-			<strong class="text-kood-text">Start new review round</strong> after fixes.
-		</div>
-	{:else if isReviewer}
-		<div
-			class="rounded-lg border border-kood-accent/25 bg-kood-accent/5 px-4 py-3 text-sm text-kood-text/90"
-			role="status"
-		>
-			{#if app.role === 'jane'}
-				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows in your tab. Use <strong
-					class="text-kood-text/90">{tabJoeBucketLabel}</strong> to see {oName}’s scope (read-only verdicts; you can still
-				comment).
-			{:else}
-				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows in <strong class="text-kood-text/90"
-					>{tabJoeBucketLabel}</strong
-				>. Use <strong class="text-kood-text/90">{tabJaneBucketLabel}</strong> to read {jName}’s scope (read-only
-				verdicts; you can still comment).
-			{/if}
-		</div>
+		<p class="text-xs text-kood-muted" role="status">
+			Verdicts are read-only — expand a row for the thread. Use <strong class="text-kood-text/90">Start new review round</strong> after fixes.
+		</p>
 	{/if}
 
 	<section>

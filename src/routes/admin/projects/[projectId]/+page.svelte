@@ -14,12 +14,10 @@
 	const navLinks = $derived(
 		[
 			{ href: '#audit-overview', label: 'Overview' },
-			data.testingItemProgress.length > 0 ? { href: '#audit-sql-testing', label: 'Testing (SQL)' } : null,
-			data.codeReviewObservationProgress.length > 0 ? { href: '#audit-sql-code', label: 'Code review (SQL)' } : null,
-			standup ? { href: '#audit-standup', label: 'Standup' } : null,
-			fb ? { href: '#audit-360', label: '360° feedback' } : null,
 			{ href: '#audit-threads-testing', label: 'Testing threads' },
-			{ href: '#audit-threads-code', label: 'Code threads' }
+			{ href: '#audit-threads-code', label: 'Code threads' },
+			standup ? { href: '#audit-standup', label: 'Standup' } : null,
+			fb ? { href: '#audit-360', label: '360°' } : null
 		].filter(Boolean) as { href: string; label: string }[]
 	);
 
@@ -48,9 +46,9 @@
 	<title>{data.projectDisplayTitle} — Admin</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl space-y-8 pb-12">
+<div class="mx-auto max-w-4xl space-y-10 pb-12">
 	<p class="text-xs text-kood-muted">
-		<a href="/admin" class="text-kood-accent underline underline-offset-2">← Admin dashboard</a>
+		<a href="/admin" class="text-kood-accent underline underline-offset-2">← Admin dashboard.</a>
 	</p>
 
 	<nav
@@ -68,7 +66,7 @@
 
 	<header
 		id="audit-overview"
-		class="scroll-mt-24 rounded-2xl border border-kood-accent/25 bg-gradient-to-br from-kood-surface/90 to-kood-bg/30 p-5 md:p-6"
+		class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6"
 	>
 		<p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-kood-muted/90">Project</p>
 		<h1 class="mt-1 text-xl font-semibold tracking-tight text-kood-text md:text-2xl">
@@ -80,11 +78,11 @@
 			<span class="mx-2 text-kood-border">·</span>
 			Created <span class="text-kood-text/90">{started}</span>
 			<span class="mx-2 text-kood-border">·</span>
-			Status <span class="font-medium text-kood-accent">{data.project.status}</span>
+			Status <span class="font-medium text-kood-text">{data.project.status}</span>
 		</p>
 		{#if data.project.giteaUrl}
 			<p class="mt-3 break-all text-sm">
-				<a class="text-kood-accent underline" href={data.project.giteaUrl} target="_blank" rel="noreferrer"
+				<a class="text-kood-text underline decoration-kood-border hover:decoration-kood-text/40" href={data.project.giteaUrl} target="_blank" rel="noreferrer"
 					>{data.project.giteaUrl}</a
 				>
 			</p>
@@ -107,88 +105,69 @@
 			</div>
 		</div>
 
-		{#if data.pair}
-			<p class="mt-4 text-xs text-kood-muted">
-				Pair row · reviewer IDs
-				<span class="ml-1 font-mono text-[10px] text-kood-text/80">{data.pair.reviewerAId}</span>
-				·
-				<span class="font-mono text-[10px] text-kood-text/80">{data.pair.reviewerBId}</span>
-			</p>
-		{/if}
 	</header>
 
-	{#if data.testingItemProgress.length > 0}
-		<section id="audit-sql-testing" class="scroll-mt-24 rounded-2xl border border-kood-border bg-kood-surface/80 p-4 md:p-5">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Testing · verdict progress (SQL)</h2>
-			<p class="mt-1 text-xs text-kood-muted">
-				Latest accept/decline/pending per checklist row (same ids as the prototype).
-			</p>
-			<div class="mt-3 overflow-x-auto rounded-xl border border-kood-border/80 bg-kood-bg/30">
-				<table class="w-full min-w-[640px] border-collapse text-left text-xs">
-					<thead>
-						<tr class="border-b border-kood-border bg-kood-surface-raised/50 text-kood-muted">
-							<th class="px-3 py-2">Item</th>
-							<th class="px-3 py-2">Section</th>
-							<th class="px-3 py-2">Owner</th>
-							<th class="px-3 py-2">Reviewer 1</th>
-							<th class="px-3 py-2">Reviewer 2</th>
-							<th class="px-3 py-2">Round</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.testingItemProgress as row (row.itemId)}
-							<tr class="border-b border-kood-border/50">
-								<td class="px-3 py-2 font-mono text-[11px]">{row.itemId}</td>
-								<td class="px-3 py-2">{row.section}</td>
-								<td class="px-3 py-2">{row.mandatoryOwner ?? '—'}</td>
-								<td class="px-3 py-2">{row.janeVerdict}</td>
-								<td class="px-3 py-2">{row.joeVerdict}</td>
-								<td class="px-3 py-2">{row.testingRound}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		</section>
-	{/if}
+	<section id="audit-threads-testing" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
+		<h2 class="text-base font-semibold text-kood-text">Testing — threads</h2>
+		{#if data.testingThreadGroups.length === 0}
+			<p class="mt-3 text-sm text-kood-muted">No testing comments saved yet.</p>
+		{:else}
+			<ul class="mt-5 space-y-6">
+				{#each data.testingThreadGroups as g (g.context)}
+					<li class="rounded-xl border border-kood-border/70 bg-kood-bg/35 p-4">
+						<p class="text-sm font-medium text-kood-text">{g.context}</p>
+						<ul class="mt-4 space-y-3">
+							{#each g.entries as t (t.at + t.text.slice(0, 24))}
+								<li class="rounded-lg border border-kood-border/50 bg-kood-surface/50 p-3">
+									<p class="text-xs text-kood-muted">
+										<span class="font-semibold text-kood-text">{t.authorLabel}</span>
+										{#if t.round != null}
+											<span class="text-kood-muted"> · Round {t.round}</span>
+										{/if}
+										<span class="text-kood-muted"> · {t.at ? new Date(t.at).toLocaleString() : '—'}</span>
+									</p>
+									<p class="mt-2 text-sm leading-relaxed text-kood-text">{t.text}</p>
+								</li>
+							{/each}
+						</ul>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 
-	{#if data.codeReviewObservationProgress.length > 0}
-		<section id="audit-sql-code" class="scroll-mt-24 rounded-2xl border border-kood-border bg-kood-surface/80 p-4 md:p-5">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Code review · verdict progress (SQL)</h2>
-			<p class="mt-1 text-xs text-kood-muted">Per observation row — matches the sprint board.</p>
-			<div class="mt-3 overflow-x-auto rounded-xl border border-kood-border/80 bg-kood-bg/30">
-				<table class="w-full min-w-[560px] border-collapse text-left text-xs">
-					<thead>
-						<tr class="border-b border-kood-border bg-kood-surface-raised/50 text-kood-muted">
-							<th class="px-3 py-2">Category</th>
-							<th class="px-3 py-2">Observation</th>
-							<th class="px-3 py-2">Reviewer 1</th>
-							<th class="px-3 py-2">Reviewer 2</th>
-							<th class="px-3 py-2">Round</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.codeReviewObservationProgress as row (`${row.categoryId}-${row.observationId}`)}
-							<tr class="border-b border-kood-border/50">
-								<td class="px-3 py-2">{row.categoryId}</td>
-								<td class="px-3 py-2 font-mono text-[11px]">{row.observationId}</td>
-								<td class="px-3 py-2">{row.janeVerdict}</td>
-								<td class="px-3 py-2">{row.joeVerdict}</td>
-								<td class="px-3 py-2">{row.codeReviewRound}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		</section>
-	{/if}
+	<section id="audit-threads-code" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
+		<h2 class="text-base font-semibold text-kood-text">Code review — threads</h2>
+		{#if data.codeReviewThreadGroups.length === 0}
+			<p class="mt-3 text-sm text-kood-muted">No code review comments saved yet.</p>
+		{:else}
+			<ul class="mt-5 space-y-6">
+				{#each data.codeReviewThreadGroups as g (g.context)}
+					<li class="rounded-xl border border-kood-border/70 bg-kood-bg/35 p-4">
+						<p class="text-sm font-medium text-kood-text">{g.context}</p>
+						<ul class="mt-4 space-y-3">
+							{#each g.entries as t (t.at + t.text.slice(0, 24))}
+								<li class="rounded-lg border border-kood-border/50 bg-kood-surface/50 p-3">
+									<p class="text-xs text-kood-muted">
+										<span class="font-semibold text-kood-text">{t.authorLabel}</span>
+										{#if t.round != null}
+											<span class="text-kood-muted"> · Round {t.round}</span>
+										{/if}
+										<span class="text-kood-muted"> · {t.at ? new Date(t.at).toLocaleString() : '—'}</span>
+									</p>
+									<p class="mt-2 text-sm leading-relaxed text-kood-text">{t.text}</p>
+								</li>
+							{/each}
+						</ul>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 
 	{#if standup}
-		<section id="audit-standup" class="scroll-mt-24 rounded-2xl border border-kood-border bg-kood-surface/80 p-4 md:p-5">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Standup (saved)</h2>
-			<p class="mt-1 text-xs text-kood-muted">
-				From <code class="rounded bg-kood-bg px-1 font-mono text-[10px]">code_review_json.standup</code> after sync.
-			</p>
+		<section id="audit-standup" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
+			<h2 class="text-base font-semibold text-kood-text">Standup</h2>
 			<dl class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
 				<div>
 					<dt class="text-kood-muted">Meeting start</dt>
@@ -207,7 +186,7 @@
 					>
 						{#each standup.standupTakeawayMessages as m (m.id)}
 							<li class="rounded-lg bg-kood-surface/60 px-2 py-1.5">
-								<span class="font-medium text-kood-accent">{personaRoomLabel(m.author)}</span>
+								<span class="font-medium text-kood-text">{personaRoomLabel(m.author)}</span>
 								<span class="text-kood-muted"> · {m.at || '—'}</span>
 								<p class="mt-0.5 whitespace-pre-wrap text-kood-text/90">{m.text}</p>
 							</li>
@@ -236,15 +215,10 @@
 	{/if}
 
 	{#if fb}
-		<section id="audit-360" class="scroll-mt-24 rounded-2xl border border-kood-border/80 bg-kood-bg/25 p-5 md:p-6">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">360° feedback (saved)</h2>
-			<p class="mt-1 text-xs text-kood-muted/90">
-				Submitter ratings per category and each reviewer’s scores in <code class="rounded bg-kood-surface px-1 font-mono text-[10px]"
-					>code_review_json.feedback360</code
-				>.
-			</p>
+		<section id="audit-360" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
+			<h2 class="text-base font-semibold text-kood-text">360° feedback</h2>
 
-			<div class="mt-5 space-y-3">
+			<div class="mt-6 space-y-3">
 				<p class="text-xs font-medium text-kood-muted">Submitter → reviewers (by category)</p>
 				<div class="grid gap-2 sm:grid-cols-2">
 					{#each CATEGORIES as cat (cat.id)}
@@ -258,7 +232,7 @@
 								<p class="mt-1 text-kood-text/90">
 									Score: <span class="font-mono">{row.score ?? '—'}</span>
 									{#if row.submitted}
-										<span class="ml-2 text-kood-accent">Submitted</span>
+										<span class="ml-2 text-xs text-kood-muted">Submitted</span>
 									{/if}
 								</p>
 								{#if row.comment.trim()}
@@ -279,7 +253,7 @@
 							<p class="font-medium text-kood-text/90">{dim.title}</p>
 							<p class="mt-0.5 text-kood-text/90">
 								Score: <span class="font-mono">{block.score ?? '—'}</span>
-								{#if block.submitted}<span class="ml-2 text-kood-accent">Submitted</span>{/if}
+								{#if block.submitted}<span class="ml-2 text-xs text-kood-muted">Submitted</span>{/if}
 							</p>
 							{#if block.comment.trim()}
 								<p class="mt-1 whitespace-pre-wrap text-kood-muted">{block.comment}</p>
@@ -295,7 +269,7 @@
 							<p class="font-medium text-kood-text/90">{dim.title}</p>
 							<p class="mt-0.5 text-kood-text/90">
 								Score: <span class="font-mono">{block.score ?? '—'}</span>
-								{#if block.submitted}<span class="ml-2 text-kood-accent">Submitted</span>{/if}
+								{#if block.submitted}<span class="ml-2 text-xs text-kood-muted">Submitted</span>{/if}
 							</p>
 							{#if block.comment.trim()}
 								<p class="mt-1 whitespace-pre-wrap text-kood-muted">{block.comment}</p>
@@ -306,68 +280,4 @@
 			</div>
 		</section>
 	{/if}
-
-	<section id="audit-threads-testing" class="scroll-mt-24 rounded-2xl border border-kood-border bg-kood-surface/80 p-4 md:p-5">
-		<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Testing · conversation threads</h2>
-		<p class="mt-1 text-xs text-kood-muted">
-			Reviewer ↔ submitter messages (SQL after sync, otherwise saved JSON).
-		</p>
-		{#if data.testingThreadGroups.length === 0}
-			<p class="mt-2 text-sm text-kood-muted">No testing comments saved yet.</p>
-		{:else}
-			<ul class="mt-3 space-y-4 text-sm">
-				{#each data.testingThreadGroups as g (g.context)}
-					<li class="rounded-xl border border-kood-border/70 bg-kood-bg/25 p-3">
-						<p class="text-xs text-kood-muted">{g.context}</p>
-						<ul class="mt-2 space-y-2">
-							{#each g.entries as t (t.at + t.text.slice(0, 24))}
-								<li class="border-l-2 border-kood-accent/40 pl-2 text-xs">
-									<p class="text-kood-muted">
-										<span class="font-semibold text-kood-text">{t.authorLabel}</span>
-										{#if t.round != null}
-											· round {t.round}
-										{/if}
-										· {t.at ? new Date(t.at).toLocaleString() : '—'}
-									</p>
-									<p class="mt-1 whitespace-pre-wrap text-kood-text/90">{t.text}</p>
-								</li>
-							{/each}
-						</ul>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
-
-	<section id="audit-threads-code" class="scroll-mt-24 rounded-2xl border border-kood-border bg-kood-surface/80 p-4 md:p-5">
-		<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Code review · conversation threads</h2>
-		<p class="mt-1 text-xs text-kood-muted">
-			Messages on each observation row (SQL after sync, otherwise saved JSON).
-		</p>
-		{#if data.codeReviewThreadGroups.length === 0}
-			<p class="mt-2 text-sm text-kood-muted">No code review comments saved yet.</p>
-		{:else}
-			<ul class="mt-3 space-y-4 text-sm">
-				{#each data.codeReviewThreadGroups as g (g.context)}
-					<li class="rounded-xl border border-kood-border/70 bg-kood-bg/25 p-3">
-						<p class="text-xs text-kood-muted">{g.context}</p>
-						<ul class="mt-2 space-y-2">
-							{#each g.entries as t (t.at + t.text.slice(0, 24))}
-								<li class="border-l-2 border-kood-accent/40 pl-2 text-xs">
-									<p class="text-kood-muted">
-										<span class="font-semibold text-kood-text">{t.authorLabel}</span>
-										{#if t.round != null}
-											· round {t.round}
-										{/if}
-										· {t.at ? new Date(t.at).toLocaleString() : '—'}
-									</p>
-									<p class="mt-1 whitespace-pre-wrap text-kood-text/90">{t.text}</p>
-								</li>
-							{/each}
-						</ul>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
 </div>

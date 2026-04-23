@@ -9,7 +9,9 @@ import {
 	codeReviewObservationProgress,
 	codeReviewThreadMessage,
 	project,
+	projectComment,
 	reviewPair,
+	session,
 	testingItemProgress,
 	testingThreadMessage,
 	user,
@@ -495,6 +497,159 @@ export function categoryAssigneeMapFromPair(pair: ReviewPairRow): Record<string,
 	for (const id of a) map[id] = 'jane';
 	for (const id of b) map[id] = 'joe';
 	return map;
+}
+
+export type AdminPairedProjectBrief = {
+	id: string;
+	displayTitle: string;
+	status: string;
+	reviewerAId: string;
+	reviewerBId: string;
+	reviewerAUsername: string;
+	reviewerBUsername: string;
+};
+
+/** Projects with an assigned pair that are not completed (swap reviewers here). */
+export async function listPairedProjectsForAdminReassign(): Promise<AdminPairedProjectBrief[]> {
+	const db = getDb();
+	const ra = alias(user, 'ra');
+	const rb = alias(user, 'rb');
+	const rows = await db
+		.select({
+			id: project.id,
+			giteaUrl: project.giteaUrl,
+			instructions: project.instructions,
+			status: project.status,
+			reviewerAId: reviewPair.reviewerAId,
+			reviewerBId: reviewPair.reviewerBId,
+			reviewerAUsername: ra.username,
+			reviewerBUsername: rb.username
+		})
+		.from(reviewPair)
+		.innerJoin(project, eq(reviewPair.projectId, project.id))
+		.innerJoin(ra, eq(reviewPair.reviewerAId, ra.id))
+		.innerJoin(rb, eq(reviewPair.reviewerBId, rb.id))
+		.where(ne(project.status, 'completed'))
+		.orderBy(desc(project.createdAt));
+
+	return rows.map((r) => ({
+		id: r.id,
+		displayTitle: adminProjectDisplayTitle(r.giteaUrl, r.instructions),
+		status: r.status,
+		reviewerAId: r.reviewerAId,
+		reviewerBId: r.reviewerBId,
+		reviewerAUsername: r.reviewerAUsername,
+		reviewerBUsername: r.reviewerBUsername
+	}));
+}
+
+export async function adminSetUserRole(
+	targetId: string,
+	newRole: 'submitter' | 'reviewer'
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const db = getDb();
+	const u = await userPublicRow(targetId);
+	if (!u) return { ok: false, error: 'User not found' };
+	if (u.role === 'admin') return { ok: false, error: 'Admin accounts cannot be edited here' };
+	if (u.role === newRole) return { ok: true };
+
+	if (newRole === 'reviewer') {
+		const owned = await db
+			.select({ id: project.id })
+			.from(project)
+			.where(and(eq(project.submitterId, targetId), ne(project.status, 'completed')));
+		if (owned.length > 0) {
+			return {
+				ok: false,
+				error: 'This user still owns an active project as submitter — complete or transfer projects first'
+			};
+		}
+	}
+
+	if (newRole === 'submitter') {
+		const pairs = await db
+			.select({ projectId: reviewPair.projectId })
+			.from(reviewPair)
+			.where(or(eq(reviewPair.reviewerAId, targetId), eq(reviewPair.reviewerBId, targetId)));
+		for (const row of pairs) {
+			const p = await getProjectById(row.projectId);
+			if (p && p.status !== 'completed') {
+				return {
+					ok: false,
+					error: 'Remove this reviewer from their active pair first (reassign slot or complete the project)'
+				};
+			}
+		}
+	}
+
+	await db.update(user).set({ role: newRole }).where(eq(user.id, targetId));
+	return { ok: true };
+}
+
+export async function adminDeleteUser(
+	targetId: string,
+	actorId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	if (targetId === actorId) return { ok: false, error: 'You cannot delete your own account' };
+	const db = getDb();
+	const u = await userPublicRow(targetId);
+	if (!u) return { ok: false, error: 'User not found' };
+	if (u.role === 'admin') return { ok: false, error: 'Admin accounts cannot be deleted' };
+
+	const owned = await db
+		.select({ id: project.id })
+		.from(project)
+		.where(eq(project.submitterId, targetId));
+	if (owned.length > 0) {
+		return { ok: false, error: 'User is still a submitter on one or more projects' };
+	}
+
+	const pairRows = await db
+		.select({ id: reviewPair.id })
+		.from(reviewPair)
+		.where(or(eq(reviewPair.reviewerAId, targetId), eq(reviewPair.reviewerBId, targetId)));
+	if (pairRows.length > 0) {
+		return { ok: false, error: 'User is still assigned as a reviewer on a pair — reassign slots first' };
+	}
+
+	const comments = await db
+		.select({ id: projectComment.id })
+		.from(projectComment)
+		.where(eq(projectComment.authorId, targetId))
+		.limit(1);
+	if (comments.length > 0) {
+		return { ok: false, error: 'User has project comments in the database — revoke not supported yet' };
+	}
+
+	await db.delete(session).where(eq(session.userId, targetId));
+	await db.delete(user).where(eq(user.id, targetId));
+	return { ok: true };
+}
+
+export async function adminReassignReviewerSlot(params: {
+	projectId: string;
+	slot: 'A' | 'B';
+	newReviewerId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+	const { projectId, slot, newReviewerId } = params;
+	const db = getDb();
+	const pair = await getPairForProject(projectId);
+	if (!pair) return { ok: false, error: 'No reviewer pair on this project' };
+	const p = await getProjectById(projectId);
+	if (!p || p.status === 'completed') return { ok: false, error: 'Project not eligible' };
+
+	const nu = await userPublicRow(newReviewerId);
+	if (!nu || nu.role !== 'reviewer') return { ok: false, error: 'Replacement must be a reviewer account' };
+
+	const otherId = slot === 'A' ? pair.reviewerBId : pair.reviewerAId;
+	if (newReviewerId === otherId) return { ok: false, error: 'Pick someone different from the other slot' };
+
+	if (slot === 'A') {
+		await db.update(reviewPair).set({ reviewerAId: newReviewerId }).where(eq(reviewPair.projectId, projectId));
+	} else {
+		await db.update(reviewPair).set({ reviewerBId: newReviewerId }).where(eq(reviewPair.projectId, projectId));
+	}
+	return { ok: true };
 }
 
 export async function startNextProjectBatch(submitterId: string) {

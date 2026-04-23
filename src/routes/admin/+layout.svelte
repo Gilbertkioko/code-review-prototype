@@ -9,6 +9,7 @@
 <PrototypePageShell
 	variant="admin"
 	adminDashboardActive={data.adminIsDashboard}
+	adminUsersActive={data.adminUsersActive}
 	adminSidebarProjects={data.sidebarProjects}
 	adminCurrentProjectId={data.adminProjectRouteId}
 >

@@ -6,10 +6,11 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ parent }) => {
 	const { sidebarProjects } = await parent();
 	const users = await listUsersForAdmin();
+	const reviewers = users.filter((u) => u.role === 'reviewer');
 	const pairable = sidebarProjects.filter((p) => p.status === 'repo_submitted');
 	const completed = sidebarProjects.filter((p) => p.status === 'completed');
 	const active = sidebarProjects.filter((p) => p.status !== 'completed');
-	return { users, pairable, completed, active };
+	return { reviewers, pairable, completed, active };
 };
 
 export const actions: Actions = {
