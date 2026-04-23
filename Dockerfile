@@ -29,7 +29,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY patches ./patches
 
-RUN npm ci --omit=dev \
+# --ignore-scripts: postinstall runs `patch-package`, which is not installed with --omit=dev
+RUN npm ci --omit=dev --ignore-scripts \
 	&& npx --yes patch-package@8.0.1 \
 	&& npm cache clean --force
 
