@@ -2,7 +2,11 @@
 	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
 	import { setContext } from 'svelte';
-	import { APP_STATE_STORAGE_KEY, getApp } from '$lib/appState.svelte';
+	import {
+		appStateStorageKey,
+		getApp,
+		hydrateAppStateForAccount
+	} from '$lib/appState.svelte';
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
 	import { realtimeClientLog } from '$lib/realtimeDebug';
 	import { connectRealtimeSse, isRealtimeSseEnabled } from '$lib/realtimeSse';
@@ -20,6 +24,16 @@
 	setContext(AUTH_SESSION, auth);
 
 	const app = getApp();
+
+	/** Per-account `localStorage` — avoid mixing prototype UI when switching users in one browser. */
+	let lastHydratedAccountSig: string | undefined = undefined;
+	$effect(() => {
+		if (!browser) return;
+		const sig = data.sessionUser?.id ?? '';
+		if (sig === lastHydratedAccountSig) return;
+		lastHydratedAccountSig = sig;
+		hydrateAppStateForAccount(data.sessionUser?.id ?? null);
+	});
 
 	/**
 	 * Production (e.g. Vercel): long interval so `/socket.io` 404 + poll fallback does not wipe the UI every few seconds.
@@ -172,7 +186,7 @@
 			leaderboardNote: app.leaderboardNote,
 			reviewerAssignmentAccepted: app.reviewerAssignmentAccepted
 		};
-		localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(snap));
+		localStorage.setItem(appStateStorageKey(data.sessionUser?.id ?? null), JSON.stringify(snap));
 	});
 </script>
 

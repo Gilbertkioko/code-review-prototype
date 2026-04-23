@@ -16,8 +16,15 @@ import type {
 	TestingItem
 } from './types';
 
-/** Used by `+layout.svelte` for `localStorage` sync. */
-export const APP_STATE_STORAGE_KEY = 'kood-code-review-prototype-v1';
+/** Base prefix; persisted key is `${prefix}:${userId}` so multiple accounts on one browser do not clobber each other. */
+export const APP_STATE_STORAGE_PREFIX = 'kood-code-review-prototype-v1';
+
+/** @deprecated Use {@link appStateStorageKey} — legacy single key for one-time migration. */
+const LEGACY_APP_STATE_STORAGE_KEY = APP_STATE_STORAGE_PREFIX;
+
+export function appStateStorageKey(userId: string | null): string {
+	return `${APP_STATE_STORAGE_PREFIX}:${userId ?? 'anon'}`;
+}
 
 function uid() {
 	return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -210,13 +217,11 @@ function normalizeSandraRatings(parsed: unknown): SandraRating[] {
 	});
 }
 
-function load(): Snapshot {
-	if (!browser) return createInitialSnapshot();
+function parseStoredJsonToSnapshot(raw: string | null): Snapshot {
+	if (!raw) return createLiveInitialSnapshot();
 	try {
-		const raw = localStorage.getItem(APP_STATE_STORAGE_KEY);
-		if (!raw) return createInitialSnapshot();
 		const p = JSON.parse(raw) as Partial<Snapshot>;
-		const base = createInitialSnapshot();
+		const base = createLiveInitialSnapshot();
 		return {
 			...base,
 			...p,
@@ -244,11 +249,70 @@ function load(): Snapshot {
 			)
 		};
 	} catch {
-		return createInitialSnapshot();
+		return createLiveInitialSnapshot();
 	}
 }
 
-const data = $state(load());
+function readSnapshotForUser(userId: string): Snapshot {
+	const key = appStateStorageKey(userId);
+	let raw = localStorage.getItem(key);
+	if (!raw) {
+		const legacy = localStorage.getItem(LEGACY_APP_STATE_STORAGE_KEY);
+		if (legacy) {
+			try {
+				localStorage.setItem(key, legacy);
+				localStorage.removeItem(LEGACY_APP_STATE_STORAGE_KEY);
+			} catch {
+				/* ignore quota / private mode */
+			}
+			raw = legacy;
+		}
+	}
+	return parseStoredJsonToSnapshot(raw);
+}
+
+function assignSnapshotToRuntimeState(snap: Snapshot) {
+	data.role = snap.role;
+	data.phase = snap.phase;
+	data.projectStarted = snap.projectStarted;
+	data.submittedForReview = snap.submittedForReview;
+	data.testingItems = snap.testingItems;
+	data.testingRound = snap.testingRound;
+	data.categorySessions = snap.categorySessions;
+	data.codeReviewRound = snap.codeReviewRound;
+	data.standupItems = snap.standupItems;
+	data.standupWhen = snap.standupWhen;
+	data.standupVoiceChannel = snap.standupVoiceChannel;
+	data.standupTakeaways = snap.standupTakeaways;
+	data.reviewerAssignmentAccepted = snap.reviewerAssignmentAccepted;
+	data.sandraRatings = snap.sandraRatings;
+	data.reviewerRatings = snap.reviewerRatings;
+	data.xpMock = snap.xpMock;
+	data.leaderboardNote = snap.leaderboardNote;
+}
+
+/** Call when `sessionUser.id` changes so each account gets its own persisted prototype state. */
+export function hydrateAppStateForAccount(userId: string | null) {
+	if (!browser) return;
+	if (!userId) {
+		assignSnapshotToRuntimeState(createLiveInitialSnapshot());
+		return;
+	}
+	assignSnapshotToRuntimeState(readSnapshotForUser(userId));
+}
+
+function clearAllAppStateStorageKeys() {
+	if (!browser) return;
+	const keys: string[] = [];
+	for (let i = 0; i < localStorage.length; i++) {
+		const k = localStorage.key(i);
+		if (!k) continue;
+		if (k === LEGACY_APP_STATE_STORAGE_KEY || k.startsWith(`${APP_STATE_STORAGE_PREFIX}:`)) keys.push(k);
+	}
+	for (const k of keys) localStorage.removeItem(k);
+}
+
+const data = $state(createLiveInitialSnapshot());
 
 /** Per-thread POST in flight (live sync) — prevents double-submit and drives send-button UI. */
 const codeReviewCommentSending = $state<Record<string, boolean>>({});
@@ -874,24 +938,8 @@ export function canRevisitPhaseInProgress(stepPhase: Phase, currentPhase: Phase)
 
 export function resetPrototype() {
 	const fresh = createDemoSeededSnapshot();
-	data.role = fresh.role;
-	data.phase = fresh.phase;
-	data.projectStarted = fresh.projectStarted;
-	data.submittedForReview = fresh.submittedForReview;
-	data.testingItems = fresh.testingItems;
-	data.testingRound = fresh.testingRound;
-	data.categorySessions = fresh.categorySessions;
-	data.codeReviewRound = fresh.codeReviewRound;
-	data.standupItems = fresh.standupItems;
-	data.standupWhen = fresh.standupWhen;
-	data.standupVoiceChannel = fresh.standupVoiceChannel;
-	data.standupTakeaways = fresh.standupTakeaways;
-	data.reviewerAssignmentAccepted = fresh.reviewerAssignmentAccepted;
-	data.sandraRatings = fresh.sandraRatings;
-	data.reviewerRatings = fresh.reviewerRatings;
-	data.xpMock = fresh.xpMock;
-	data.leaderboardNote = fresh.leaderboardNote;
-	if (browser) localStorage.removeItem(APP_STATE_STORAGE_KEY);
+	assignSnapshotToRuntimeState(fresh);
+	if (browser) clearAllAppStateStorageKeys();
 	pushToast('Prototype reset to demo defaults.');
 }
 
