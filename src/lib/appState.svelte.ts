@@ -3,7 +3,12 @@ import { getActiveCollaboration } from '$lib/collaborationContext';
 import { seedCategorySessionsForJoeDemo, seedTestingItemsForYouJoeDemo } from '$lib/demo/youJoeDemoSeed';
 import { postFormReviewAction } from '$lib/reviewSyncClient';
 import { createFullTestingItems } from '$lib/features/testing/checklist';
-import { CATEGORIES, emptyObservationRowsForCategory, ACADEMY_BASE } from './constants';
+import {
+	CATEGORIES,
+	codeReviewObservationsForCategory,
+	emptyObservationRowsForCategory,
+	ACADEMY_BASE
+} from './constants';
 import type {
 	CategorySession,
 	CodeReviewListEntry,
@@ -743,7 +748,7 @@ export function categoryAssignee(catId: string): 'jane' | 'joe' | undefined {
 export function codeReviewObservationsList(): CodeReviewListEntry[] {
 	const out: CodeReviewListEntry[] = [];
 	for (const c of CATEGORIES) {
-		for (const o of c.observations) {
+		for (const o of codeReviewObservationsForCategory(c)) {
 			out.push({
 				compositeId: `${c.id}:${o.id}`,
 				categoryId: c.id,
@@ -1013,7 +1018,7 @@ export function codeReviewProgressForReviewer(reviewer: 'jane' | 'joe'): {
 export function allCategoriesComplete(): boolean {
 	for (const c of CATEGORIES) {
 		const assignee = categoryAssignee(c.id) ?? c.assignee;
-		for (const o of c.observations) {
+		for (const o of codeReviewObservationsForCategory(c)) {
 			const row = session(c.id).observationRows[o.id];
 			if (!row || row[assignee] !== 'accept') return false;
 		}

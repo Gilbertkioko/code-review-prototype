@@ -25,42 +25,36 @@
 		c.value = JSON.stringify(exportCodeReviewWorkspaceForPersistence());
 		f.requestSubmit();
 	}
-
 </script>
 
-<section class="mb-8 rounded-xl border border-kood-border bg-kood-surface/60 p-4">
-	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-kood-border pb-3">
-		<h2 class="text-sm font-semibold text-kood-text">Server sync</h2>
-		{#if showSave}
-			<div class="flex flex-wrap gap-2">
+{#if showSave}
+	<div class="mt-4 flex flex-wrap items-center gap-2 border-t border-kood-border/50 pt-3">
+		<button
+			type="button"
+			class="rounded-md border border-kood-border bg-kood-bg px-3 py-1.5 text-xs text-kood-text hover:bg-kood-surface-raised"
+			onclick={submitSave}
+		>
+			Save testing &amp; code review
+		</button>
+		{#if canMarkComplete && project.status === 'review_active'}
+			<form
+				method="post"
+				action="?/markReviewComplete"
+				use:enhance={() => {
+					return async ({ update }) => {
+						await update();
+						await invalidateAll();
+					};
+				}}
+			>
+				<input type="hidden" name="projectId" value={project.id} />
 				<button
-					type="button"
-					class="rounded border border-kood-border px-3 py-1.5 text-xs hover:bg-kood-border/20"
-					onclick={submitSave}
+					type="submit"
+					class="rounded-md border border-kood-border px-3 py-1.5 text-xs font-medium text-kood-text hover:bg-kood-surface-raised"
 				>
-					Save testing &amp; code review
+					Mark review complete
 				</button>
-				{#if canMarkComplete && project.status === 'review_active'}
-					<form
-						method="post"
-						action="?/markReviewComplete"
-						use:enhance={() => {
-							return async ({ update }) => {
-								await update();
-								await invalidateAll();
-							};
-						}}
-					>
-						<input type="hidden" name="projectId" value={project.id} />
-						<button
-							type="submit"
-							class="rounded bg-kood-accent/20 px-3 py-1.5 text-xs font-semibold text-kood-accent hover:bg-kood-accent/30"
-						>
-							Mark review complete
-						</button>
-					</form>
-				{/if}
-			</div>
+			</form>
 		{/if}
 	</div>
 
@@ -80,4 +74,4 @@
 		<input bind:this={testingField} type="hidden" name="testingPayload" value="" />
 		<input bind:this={codeField} type="hidden" name="codeReviewPayload" value="" />
 	</form>
-</section>
+{/if}

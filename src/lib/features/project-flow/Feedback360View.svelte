@@ -49,7 +49,7 @@
 		);
 		saving = false;
 		if (ok) pushToast('Synced to server — admins see this on the project overview.');
-		else pushToast('Could not sync — use “Server sync” in the workspace strip when you can.');
+		else pushToast('Could not sync — use Save in the batch card when you can.');
 	}
 
 	async function submitSandra(categoryId: string) {

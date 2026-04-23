@@ -1,73 +1,27 @@
 <script lang="ts">
-	import { CATEGORIES } from '$lib/constants';
-	import type { ReviewerRatingSet } from '$lib/types';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
 
 	const started = $derived(
 		data.project.createdAt ? new Date(data.project.createdAt).toLocaleString() : '—'
 	);
-
-	const standup = $derived(data.standupSnapshot);
-	const fb = $derived(data.feedback360Snapshot);
-
-	const navLinks = $derived(
-		[
-			{ href: '#audit-overview', label: 'Overview' },
-			{ href: '#audit-threads-testing', label: 'Testing threads' },
-			{ href: '#audit-threads-code', label: 'Code threads' },
-			standup ? { href: '#audit-standup', label: 'Standup' } : null,
-			fb ? { href: '#audit-360', label: '360°' } : null
-		].filter(Boolean) as { href: string; label: string }[]
-	);
-
-	function personaRoomLabel(author: 'sandra' | 'jane' | 'joe'): string {
-		if (author === 'sandra') return data.submitterName;
-		if (author === 'jane') return data.reviewerAName;
-		return data.reviewerBName;
-	}
-
-	const reviewer360Dims: { key: keyof ReviewerRatingSet; title: string }[] = [
-		{ key: 'readableCode', title: 'Structure & architecture' },
-		{ key: 'codeComments', title: 'Performance' },
-		{ key: 'crossReviewer', title: 'Cross-reviewer awareness' }
-	];
-
-	const checklistTitles = [
-		'Scheduled the ~45 min sync and shared time / voice channel with the team.',
-		'Followed the structure: reviewer buckets → cross-review → submitter → shared actions.',
-		'Captured takeaways below (what was discussed, key feedback, action items, reflections).',
-		'Confirmed everyone had space to speak; notes are specific enough to use later.',
-		'Agreed what “done” means for this review before moving to Accept project.'
-	] as const;
+	const sidebarHidden = $derived(Boolean(data.project.adminSidebarHiddenAt));
 </script>
 
 <svelte:head>
-	<title>{data.projectDisplayTitle} — Admin</title>
+	<title>{data.projectDisplayTitle} — Overview — Admin</title>
 </svelte:head>
 
-<div class="mx-auto max-w-4xl space-y-10 pb-12">
+<div class="mx-auto max-w-4xl space-y-8 pb-12">
 	<p class="text-xs text-kood-muted">
-		<a href="/admin" class="text-kood-accent underline underline-offset-2">← Admin dashboard.</a>
+		<a href="/admin" class="text-kood-text underline decoration-kood-border underline-offset-2 hover:decoration-kood-text/40"
+			>← Admin</a
+		>
 	</p>
 
-	<nav
-		class="sticky top-0 z-20 -mx-1 flex flex-wrap gap-1.5 border-b border-kood-border/60 bg-kood-bg/90 px-1 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-kood-bg/75"
-		aria-label="On this page"
-	>
-		{#each navLinks as link (link.href)}
-			<a
-				href={link.href}
-				class="rounded-full border border-kood-border/50 bg-kood-surface/80 px-3 py-1 text-[11px] font-medium text-kood-muted transition hover:border-kood-accent/40 hover:text-kood-text"
-				>{link.label}</a
-			>
-		{/each}
-	</nav>
-
-	<header
-		id="audit-overview"
-		class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6"
-	>
+	<header class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
 		<p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-kood-muted/90">Project</p>
 		<h1 class="mt-1 text-xl font-semibold tracking-tight text-kood-text md:text-2xl">
 			{data.projectDisplayTitle}
@@ -82,8 +36,11 @@
 		</p>
 		{#if data.project.giteaUrl}
 			<p class="mt-3 break-all text-sm">
-				<a class="text-kood-text underline decoration-kood-border hover:decoration-kood-text/40" href={data.project.giteaUrl} target="_blank" rel="noreferrer"
-					>{data.project.giteaUrl}</a
+				<a
+					class="text-kood-text underline decoration-kood-border hover:decoration-kood-text/40"
+					href={data.project.giteaUrl}
+					target="_blank"
+					rel="noreferrer">{data.project.giteaUrl}</a
 				>
 			</p>
 		{/if}
@@ -105,179 +62,54 @@
 			</div>
 		</div>
 
-	</header>
-
-	<section id="audit-threads-testing" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-		<h2 class="text-base font-semibold text-kood-text">Testing — threads</h2>
-		{#if data.testingThreadGroups.length === 0}
-			<p class="mt-3 text-sm text-kood-muted">No testing comments saved yet.</p>
-		{:else}
-			<ul class="mt-5 space-y-6">
-				{#each data.testingThreadGroups as g (g.context)}
-					<li class="rounded-xl border border-kood-border/70 bg-kood-bg/35 p-4">
-						<p class="text-sm font-medium text-kood-text">{g.context}</p>
-						<ul class="mt-4 space-y-3">
-							{#each g.entries as t (t.at + t.text.slice(0, 24))}
-								<li class="rounded-lg border border-kood-border/50 bg-kood-surface/50 p-3">
-									<p class="text-xs text-kood-muted">
-										<span class="font-semibold text-kood-text">{t.authorLabel}</span>
-										{#if t.round != null}
-											<span class="text-kood-muted"> · Round {t.round}</span>
-										{/if}
-										<span class="text-kood-muted"> · {t.at ? new Date(t.at).toLocaleString() : '—'}</span>
-									</p>
-									<p class="mt-2 text-sm leading-relaxed text-kood-text">{t.text}</p>
-								</li>
-							{/each}
-						</ul>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
-
-	<section id="audit-threads-code" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-		<h2 class="text-base font-semibold text-kood-text">Code review — threads</h2>
-		{#if data.codeReviewThreadGroups.length === 0}
-			<p class="mt-3 text-sm text-kood-muted">No code review comments saved yet.</p>
-		{:else}
-			<ul class="mt-5 space-y-6">
-				{#each data.codeReviewThreadGroups as g (g.context)}
-					<li class="rounded-xl border border-kood-border/70 bg-kood-bg/35 p-4">
-						<p class="text-sm font-medium text-kood-text">{g.context}</p>
-						<ul class="mt-4 space-y-3">
-							{#each g.entries as t (t.at + t.text.slice(0, 24))}
-								<li class="rounded-lg border border-kood-border/50 bg-kood-surface/50 p-3">
-									<p class="text-xs text-kood-muted">
-										<span class="font-semibold text-kood-text">{t.authorLabel}</span>
-										{#if t.round != null}
-											<span class="text-kood-muted"> · Round {t.round}</span>
-										{/if}
-										<span class="text-kood-muted"> · {t.at ? new Date(t.at).toLocaleString() : '—'}</span>
-									</p>
-									<p class="mt-2 text-sm leading-relaxed text-kood-text">{t.text}</p>
-								</li>
-							{/each}
-						</ul>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
-
-	{#if standup}
-		<section id="audit-standup" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-			<h2 class="text-base font-semibold text-kood-text">Standup</h2>
-			<dl class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-				<div>
-					<dt class="text-kood-muted">Meeting start</dt>
-					<dd class="mt-0.5 text-kood-text/90">{standup.standupWhen || '—'}</dd>
-				</div>
-				<div>
-					<dt class="text-kood-muted">Voice channel</dt>
-					<dd class="mt-0.5 text-kood-text/90">{standup.standupVoiceChannel || '—'}</dd>
-				</div>
-			</dl>
-			<div class="mt-4">
-				<p class="text-xs font-medium text-kood-muted">Takeaways thread</p>
-				{#if standup.standupTakeawayMessages.length > 0}
-					<ul
-						class="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-kood-border/80 bg-kood-bg/25 px-3 py-2 text-xs"
+		<div class="mt-6 border-t border-kood-border/50 pt-4">
+			<p class="text-xs font-medium text-kood-muted">Sidebar</p>
+			{#if sidebarHidden}
+				<p class="mt-1 text-xs text-kood-muted">
+					This batch is hidden from the admin Projects list.
+					<a class="text-kood-text underline" href="/admin/settings">Settings</a> lists all hidden batches.
+				</p>
+				<form
+					method="post"
+					action="?/toggleSidebarHidden"
+					class="mt-2"
+					use:enhance={() => async ({ update }) => {
+						await update();
+						await invalidateAll();
+					}}
+				>
+					<input type="hidden" name="projectId" value={data.project.id} />
+					<input type="hidden" name="hidden" value="0" />
+					<button
+						type="submit"
+						class="rounded-md border border-kood-border bg-kood-surface px-3 py-1.5 text-xs font-medium text-kood-text hover:bg-kood-surface-raised"
 					>
-						{#each standup.standupTakeawayMessages as m (m.id)}
-							<li class="rounded-lg bg-kood-surface/60 px-2 py-1.5">
-								<span class="font-medium text-kood-text">{personaRoomLabel(m.author)}</span>
-								<span class="text-kood-muted"> · {m.at || '—'}</span>
-								<p class="mt-0.5 whitespace-pre-wrap text-kood-text/90">{m.text}</p>
-							</li>
-						{/each}
-					</ul>
-				{:else if standup.standupTakeaways.trim()}
-					<pre
-						class="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl border border-kood-border/80 bg-kood-bg/25 px-3 py-2 text-xs text-kood-text/90"
-					>{standup.standupTakeaways}</pre>
-				{:else}
-					<p class="mt-1 text-xs text-kood-muted">—</p>
-				{/if}
-			</div>
-			<div class="mt-4">
-				<p class="text-xs font-medium text-kood-muted">Submitter checklist</p>
-				<ul class="mt-2 space-y-2 text-xs text-kood-text/90">
-					{#each checklistTitles as title, i (i)}
-						<li class="flex gap-2 rounded-lg border border-kood-border/50 bg-kood-bg/20 px-2 py-1.5">
-							<span class="shrink-0 text-kood-muted" aria-hidden="true">{standup.standupItems[i] ? '✓' : '·'}</span>
-							<span>{title}</span>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		</section>
-	{/if}
-
-	{#if fb}
-		<section id="audit-360" class="scroll-mt-24 rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-			<h2 class="text-base font-semibold text-kood-text">360° feedback</h2>
-
-			<div class="mt-6 space-y-3">
-				<p class="text-xs font-medium text-kood-muted">Submitter → reviewers (by category)</p>
-				<div class="grid gap-2 sm:grid-cols-2">
-					{#each CATEGORIES as cat (cat.id)}
-						{@const row = fb.sandraRatings.find((r) => r.categoryId === cat.id)}
-						{#if row}
-							<div class="rounded-xl border border-kood-border/60 bg-kood-surface/80 px-3 py-2 text-xs">
-								<p class="font-medium text-kood-text/90">{cat.title}</p>
-								<p class="mt-0.5 text-kood-muted">
-									Reviewer: {cat.assignee === 'jane' ? data.reviewerAName : data.reviewerBName}
-								</p>
-								<p class="mt-1 text-kood-text/90">
-									Score: <span class="font-mono">{row.score ?? '—'}</span>
-									{#if row.submitted}
-										<span class="ml-2 text-xs text-kood-muted">Submitted</span>
-									{/if}
-								</p>
-								{#if row.comment.trim()}
-									<p class="mt-1 whitespace-pre-wrap text-kood-muted">{row.comment}</p>
-								{/if}
-							</div>
-						{/if}
-					{/each}
-				</div>
-			</div>
-
-			<div class="mt-6 grid gap-6 md:grid-cols-2">
-				<div class="space-y-3">
-					<p class="text-xs font-medium text-kood-muted">Reviewer A ({data.reviewerAName})</p>
-					{#each reviewer360Dims as dim (`jane-${dim.key}`)}
-						{@const block = fb.reviewerRatings.jane[dim.key]}
-						<div class="rounded-xl border border-kood-border/60 bg-kood-surface/80 px-3 py-2 text-xs">
-							<p class="font-medium text-kood-text/90">{dim.title}</p>
-							<p class="mt-0.5 text-kood-text/90">
-								Score: <span class="font-mono">{block.score ?? '—'}</span>
-								{#if block.submitted}<span class="ml-2 text-xs text-kood-muted">Submitted</span>{/if}
-							</p>
-							{#if block.comment.trim()}
-								<p class="mt-1 whitespace-pre-wrap text-kood-muted">{block.comment}</p>
-							{/if}
-						</div>
-					{/each}
-				</div>
-				<div class="space-y-3">
-					<p class="text-xs font-medium text-kood-muted">Reviewer B ({data.reviewerBName})</p>
-					{#each reviewer360Dims as dim (`joe-${dim.key}`)}
-						{@const block = fb.reviewerRatings.joe[dim.key]}
-						<div class="rounded-xl border border-kood-border/60 bg-kood-surface/80 px-3 py-2 text-xs">
-							<p class="font-medium text-kood-text/90">{dim.title}</p>
-							<p class="mt-0.5 text-kood-text/90">
-								Score: <span class="font-mono">{block.score ?? '—'}</span>
-								{#if block.submitted}<span class="ml-2 text-xs text-kood-muted">Submitted</span>{/if}
-							</p>
-							{#if block.comment.trim()}
-								<p class="mt-1 whitespace-pre-wrap text-kood-muted">{block.comment}</p>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			</div>
-		</section>
-	{/if}
+						Show in sidebar again
+					</button>
+				</form>
+			{:else}
+				<p class="mt-1 text-xs text-kood-muted">
+					Remove this batch from the sidebar when the list is crowded. You can bring it back anytime from Settings.
+				</p>
+				<form
+					method="post"
+					action="?/toggleSidebarHidden"
+					class="mt-2"
+					use:enhance={() => async ({ update }) => {
+						await update();
+						await invalidateAll();
+					}}
+				>
+					<input type="hidden" name="projectId" value={data.project.id} />
+					<input type="hidden" name="hidden" value="1" />
+					<button
+						type="submit"
+						class="rounded-md border border-kood-border px-3 py-1.5 text-xs text-kood-muted hover:bg-kood-bg/40 hover:text-kood-text"
+					>
+						Hide from sidebar
+					</button>
+				</form>
+			{/if}
+		</div>
+	</header>
 </div>

@@ -42,7 +42,9 @@ export const project = sqliteTable('project', {
 	testingJson: text('testing_json'),
 	codeReviewJson: text('code_review_json'),
 	createdAt: integer('created_at', { mode: 'number' }).notNull(),
-	updatedAt: integer('updated_at', { mode: 'number' }).notNull()
+	updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+	/** When set, project is omitted from the admin sidebar until restored (Settings). */
+	adminSidebarHiddenAt: integer('admin_sidebar_hidden_at', { mode: 'number' })
 });
 
 /** Admin pairs two reviewers to one project; categories split the four sprint areas. */

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { allCategoriesComplete, getPersonaDisplayLabel, trainingBlurbFor } from '$lib/appState.svelte';
-	import Accordion from '$lib/ui/Accordion.svelte';
 	import CodeReview7Day from './CodeReview7Day.svelte';
 	import CodeReviewSprintBoard from './CodeReviewSprintBoard.svelte';
 
@@ -33,74 +32,10 @@
 		</ul>
 	</section>
 
-	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
-		<h3 class="text-sm font-semibold text-kood-text">Instructions</h3>
-		<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
-			<li>
-				<strong class="text-kood-text/90">Schedule</strong> a ~45 minute meeting after the sprint categories are
-				all accepted. Add time and place in <strong class="text-kood-text/90">Standup (post-sprint)</strong> — that
-				phase stays separate so async review and the live call stay distinct.
-			</li>
-			<li>
-				<strong class="text-kood-text/90">Prepare</strong> individually before the call. Align on who already
-				looked at which parts of the repo (here: {jName} → Security &amp; Correctness, {oName} → Performance &amp;
-				Structure &amp; architecture).
-			</li>
-			<li>
-				<strong class="text-kood-text/90">During the session</strong> take notes. Anyone can facilitate; capture
-				takeaways in the standup screen so they stay actionable.
-			</li>
-		</ol>
-	</section>
-
-	<Accordion title="What to discuss on the call (structure)" badge="Post-sprint" defaultOpen={false}>
-		<p class="text-kood-muted">
-			Use this order so the conversation stays fair and complete. It mirrors how work was split in this sprint.
-		</p>
-		<ol class="mt-4 list-decimal space-y-4 pl-5 text-sm text-kood-text/90">
-			<li>
-				<strong class="text-kood-text">{jName} — assigned categories</strong>
-				<span class="text-kood-muted"> (Security, Correctness)</span>
-				<p class="mt-1 text-kood-muted">
-					Walk through main findings, feedback sent to {sandraName}, and what changed since. Peers ask clarifying
-					questions only — you own the narrative for your scope.
-				</p>
-			</li>
-			<li>
-				<strong class="text-kood-text">{oName} — assigned categories</strong>
-				<span class="text-kood-muted"> (Performance, Structure &amp; architecture)</span>
-				<p class="mt-1 text-kood-muted">
-					Same pattern: outcomes, trade-offs, anything still fuzzy. Keep cross-talk light until step 3.
-				</p>
-			</li>
-			<li>
-				<strong class="text-kood-text">Cross-review awareness</strong>
-				<p class="mt-1 text-kood-muted">
-					How did each reviewer show up in the <em>other</em> person’s themes? (e.g. security or correctness angles on
-					performance work, or scalability and layering risks in sensitive paths.) Aim for constructive, specific examples.
-				</p>
-			</li>
-			<li>
-				<strong class="text-kood-text">{sandraName} (submitter)</strong>
-				<p class="mt-1 text-kood-muted">
-					How you responded to feedback, what was hard to fix, and what you would still like reviewers to sanity-check.
-					Agree on any remaining risk or follow-up demos.
-				</p>
-			</li>
-			<li>
-				<strong class="text-kood-text">Everyone — close the loop</strong>
-				<p class="mt-1 text-kood-muted">
-					Shared action items, academy or docs follow-ups, and a crisp “done for this review” line so the project can
-					move to accept / 360° feedback without loose ends.
-				</p>
-			</li>
-		</ol>
-	</Accordion>
-
 	<div class="rounded-lg border border-kood-border bg-kood-bg/50 px-4 py-3 text-xs text-kood-muted">
-		<strong class="text-kood-text/90">Async vs live:</strong> The sprint board below matches the Testing flow
-		(Accept/Decline, threads, {jName} vs {oName} tabs). The structured call lives in
-		<strong class="text-kood-text/90">Standup (post-sprint)</strong> once every observation is accepted.
+		<strong class="text-kood-text/90">Async sprint:</strong> The board below matches the Testing flow (Accept/Decline,
+		threads, {jName} vs {oName} tabs). Scheduling the live call, the on-call discussion order, and takeaways live in
+		<strong class="text-kood-text/90">Standup (post-sprint)</strong> once every listed observation is accepted.
 	</div>
 
 	<CodeReviewSprintBoard />

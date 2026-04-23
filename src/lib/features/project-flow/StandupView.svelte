@@ -26,7 +26,7 @@
 	const sandraName = $derived(getPersonaDisplayLabel('sandra'));
 
 	const agenda = $derived([
-		'Scheduled the ~45 min sync and shared time / voice channel with the team.',
+		'Scheduled the ~45 minute sync and shared time / voice channel with the team.',
 		`Followed the structure: ${janeName}’s categories → ${joeName}’s → cross-review → ${sandraName} → shared actions.`,
 		'Captured takeaways below (what was discussed, key feedback, action items, reflections).',
 		'Confirmed everyone had space to speak; notes are specific enough to use later.',
@@ -97,7 +97,7 @@
 		const ok = await saveReviewStateToServer();
 		threadSaving = false;
 		if (ok) pushToast('Posted — synced for everyone.');
-		else pushToast('Posted here, but sync failed — try “Sync to server” below.');
+		else pushToast('Posted here, but sync failed — try Save in the batch card.');
 	}
 
 	$effect(() => {
@@ -150,29 +150,68 @@
 	</section>
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
+		<h3 class="text-sm font-semibold text-kood-text">Before the call</h3>
+		<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
+			<li>
+				<strong class="text-kood-text/90">Schedule</strong> a ~45 minute meeting after the async sprint categories are
+				all accepted. Add time and place in <strong class="text-kood-text/90">Meeting details</strong> above — that
+				phase stays separate so async review and the live call stay distinct.
+			</li>
+			<li>
+				<strong class="text-kood-text/90">Prepare</strong> individually before the call. Align on who already looked
+				at which parts of the repo (here: {janeName} → Security &amp; Correctness, {joeName} → Performance &amp;
+				Structure &amp; architecture).
+			</li>
+			<li>
+				<strong class="text-kood-text/90">During the session</strong> take notes. Anyone can facilitate; capture
+				takeaways in the thread below so they stay actionable.
+			</li>
+		</ol>
+	</section>
+
+	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
 		<h3 class="text-sm font-semibold text-kood-text">Discussion guide (on the call)</h3>
 		<p class="mt-2 text-xs text-kood-muted">
-			Facilitator keeps time; everyone else contributes under each block. Same order as on the Code review page.
+			Facilitator keeps time; everyone else contributes under each block. Use this order so the conversation stays
+			fair and complete — it mirrors how work was split in the sprint.
 		</p>
-		<ol class="mt-4 list-decimal space-y-3 pl-5 text-sm text-kood-text/90">
+		<ol class="mt-4 list-decimal space-y-4 pl-5 text-sm text-kood-text/90">
 			<li>
-				<strong class="text-kood-text">{janeName}</strong> — Security &amp; correctness: findings, feedback, fixes.
+				<strong class="text-kood-text">{janeName} — assigned categories</strong>
+				<span class="text-kood-muted"> (Security, Correctness)</span>
+				<p class="mt-1 text-kood-muted">
+					Walk through main findings, feedback sent to {sandraName}, and what changed since. Peers ask clarifying
+					questions only — you own the narrative for your scope.
+				</p>
 			</li>
 			<li>
-				<strong class="text-kood-text">{joeName}</strong> — Performance &amp; structure &amp; architecture: findings,
-				feedback, fixes.
+				<strong class="text-kood-text">{joeName} — assigned categories</strong>
+				<span class="text-kood-muted"> (Performance, Structure &amp; architecture)</span>
+				<p class="mt-1 text-kood-muted">
+					Same pattern: outcomes, trade-offs, anything still fuzzy. Keep cross-talk light until step 3.
+				</p>
 			</li>
 			<li>
-				<strong class="text-kood-text">Cross-review</strong> — How each reviewer engaged with the other’s focus
-				areas (concrete examples).
+				<strong class="text-kood-text">Cross-review awareness</strong>
+				<p class="mt-1 text-kood-muted">
+					How did each reviewer show up in the <em>other</em> person’s themes? (e.g. security or correctness angles
+					on performance work, or scalability and layering risks in sensitive paths.) Aim for constructive, specific
+					examples.
+				</p>
 			</li>
 			<li>
-				<strong class="text-kood-text">{sandraName}</strong> — Submitter perspective: what changed, what is still risky,
-				what you need from reviewers before sign-off.
+				<strong class="text-kood-text">{sandraName} (submitter)</strong>
+				<p class="mt-1 text-kood-muted">
+					How you responded to feedback, what was hard to fix, and what you would still like reviewers to
+					sanity-check. Agree on any remaining risk or follow-up demos.
+				</p>
 			</li>
 			<li>
-				<strong class="text-kood-text">Everyone</strong> — Action items, academy follow-ups, and alignment on
-				closure.
+				<strong class="text-kood-text">Everyone — close the loop</strong>
+				<p class="mt-1 text-kood-muted">
+					Shared action items, academy or docs follow-ups, and a crisp “done for this review” line so the project can
+					move to accept / 360° feedback without loose ends.
+				</p>
 			</li>
 		</ol>
 	</section>

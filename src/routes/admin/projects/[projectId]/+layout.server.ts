@@ -3,6 +3,7 @@ import {
 	parseFeedback360SnapshotFromCodeReviewJson,
 	parseStandupSnapshotFromCodeReviewJson
 } from '$lib/server/code-review-payload';
+import { buildAdminTestingSummary } from '$lib/server/admin-testing-summary';
 import {
 	auditCodeReviewThreads,
 	auditTestingThreads,
@@ -15,7 +16,6 @@ import {
 	adminProjectDisplayTitle,
 	getPairForProject,
 	getProjectById,
-	listCodeReviewObservationProgressForProject,
 	listCodeReviewThreadMessagesForProject,
 	listTestingItemProgressForProject,
 	listTestingThreadMessagesForProject,
@@ -59,10 +59,9 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 	if (!projectRow) error(404, 'Not found');
 	const pair = await getPairForProject(params.projectId);
 
-	const tp = await listTestingItemProgressForProject(params.projectId);
 	const tm = await listTestingThreadMessagesForProject(params.projectId);
-	const cp = await listCodeReviewObservationProgressForProject(params.projectId);
 	const cm = await listCodeReviewThreadMessagesForProject(params.projectId);
+	const testingProgressRows = await listTestingItemProgressForProject(params.projectId);
 
 	const room = pair
 		? await reviewRoomDisplayLabels(projectRow.submitterId, pair)
@@ -74,7 +73,7 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 
 	let testingThreads: AuditThreadEntry[];
 	if (tm.length > 0) {
-		const progByItem = new Map(tp.map((p) => [p.itemId, p]));
+		const progByItem = new Map(testingProgressRows.map((p) => [p.itemId, p]));
 		testingThreads = tm.map((m) => {
 			const p = progByItem.get(m.itemId);
 			const prefix = p ? (p.section === 'mandatory' ? 'Testing · mandatory' : 'Testing · extra') : 'Testing';
@@ -113,6 +112,11 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 	const testingThreadGroups = groupAuditThreads(relabelThreadEntries(testingThreads, room));
 	const codeReviewThreadGroups = groupAuditThreads(relabelThreadEntries(codeReviewThreads, room));
 
+	const testingChecklistAdminSummary = buildAdminTestingSummary(
+		projectRow.testingJson ?? null,
+		testingProgressRows
+	);
+
 	const projectDisplayTitle = adminProjectDisplayTitle(
 		projectRow.giteaUrl,
 		projectRow.instructions
@@ -125,9 +129,8 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 		submitterName: room.submitterUsername,
 		reviewerAName: room.reviewerAUsername,
 		reviewerBName: room.reviewerBUsername,
-		testingItemProgress: tp,
-		codeReviewObservationProgress: cp,
 		testingThreadGroups,
+		testingChecklistAdminSummary,
 		codeReviewThreadGroups,
 		standupSnapshot: parseStandupSnapshotFromCodeReviewJson(projectRow.codeReviewJson ?? null),
 		feedback360Snapshot: parseFeedback360SnapshotFromCodeReviewJson(projectRow.codeReviewJson ?? null)

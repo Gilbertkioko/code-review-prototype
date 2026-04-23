@@ -2,6 +2,17 @@ import type { CategoryDef, CodeReviewObservationRowState } from './types';
 
 export const ACADEMY_BASE = 'https://kood-review-academy-prototype-sxyr.vercel.app/academy';
 
+/**
+ * Prototype: sprint board shows at most this many observation rows per category.
+ * Sprint completion matches the same cap (see `allCategoriesComplete` / `codeReviewObservationsList`).
+ */
+export const CODE_REVIEW_OBSERVATIONS_PER_CATEGORY_CAP = 2;
+
+/** Observations included in the async code-review sprint UI and completion rules. */
+export function codeReviewObservationsForCategory(c: CategoryDef) {
+	return c.observations.slice(0, CODE_REVIEW_OBSERVATIONS_PER_CATEGORY_CAP);
+}
+
 /** You (jane): Security + Correctness. Joe: Performance + Structure & architecture. */
 export const CATEGORIES: CategoryDef[] = [
 	{

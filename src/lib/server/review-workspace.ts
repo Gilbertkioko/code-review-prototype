@@ -1,7 +1,7 @@
 import { CATEGORIES } from '$lib/constants';
 import type { CategorySession, TestingItem } from '$lib/types';
 import { parseCodeReviewSavePayload } from './code-review-payload';
-import { and, asc, desc, eq, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { generateIdFromEntropySize } from 'lucia';
 import { getDb } from './db';
@@ -61,7 +61,8 @@ export async function ensureActiveProjectForSubmitter(submitterId: string) {
 		codeReviewJson: null as string | null,
 		submissionProgress: 'awaiting_repo' as const,
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		adminSidebarHiddenAt: null as number | null
 	};
 	await db.insert(project).values(row);
 	return row;
@@ -252,6 +253,7 @@ export async function listAdminSidebarProjects(): Promise<AdminSidebarProject[]>
 		.leftJoin(reviewPair, eq(reviewPair.projectId, project.id))
 		.leftJoin(reviewerAUser, eq(reviewPair.reviewerAId, reviewerAUser.id))
 		.leftJoin(reviewerBUser, eq(reviewPair.reviewerBId, reviewerBUser.id))
+		.where(isNull(project.adminSidebarHiddenAt))
 		.orderBy(desc(project.createdAt));
 
 	return rows.map((r) => ({
@@ -265,6 +267,58 @@ export async function listAdminSidebarProjects(): Promise<AdminSidebarProject[]>
 		reviewerAUsername: r.reviewerAUsername ?? null,
 		reviewerBUsername: r.reviewerBUsername ?? null
 	}));
+}
+
+/** Projects hidden from the admin sidebar (restore from Settings). */
+export async function listAdminHiddenSidebarProjects(): Promise<AdminSidebarProject[]> {
+	const db = getDb();
+	const submitter = alias(user, 'submitter');
+	const reviewerAUser = alias(user, 'reviewer_a');
+	const reviewerBUser = alias(user, 'reviewer_b');
+
+	const rows = await db
+		.select({
+			id: project.id,
+			status: project.status,
+			giteaUrl: project.giteaUrl,
+			instructions: project.instructions,
+			createdAt: project.createdAt,
+			submitterUsername: submitter.username,
+			submitterEmail: submitter.email,
+			reviewerAUsername: reviewerAUser.username,
+			reviewerBUsername: reviewerBUser.username
+		})
+		.from(project)
+		.innerJoin(submitter, eq(project.submitterId, submitter.id))
+		.leftJoin(reviewPair, eq(reviewPair.projectId, project.id))
+		.leftJoin(reviewerAUser, eq(reviewPair.reviewerAId, reviewerAUser.id))
+		.leftJoin(reviewerBUser, eq(reviewPair.reviewerBId, reviewerBUser.id))
+		.where(isNotNull(project.adminSidebarHiddenAt))
+		.orderBy(desc(project.createdAt));
+
+	return rows.map((r) => ({
+		id: r.id,
+		status: r.status,
+		giteaUrl: r.giteaUrl,
+		createdAt: r.createdAt,
+		displayTitle: adminProjectDisplayTitle(r.giteaUrl, r.instructions),
+		submitterUsername: r.submitterUsername,
+		submitterEmail: r.submitterEmail,
+		reviewerAUsername: r.reviewerAUsername ?? null,
+		reviewerBUsername: r.reviewerBUsername ?? null
+	}));
+}
+
+export async function setProjectAdminSidebarHidden(projectId: string, hidden: boolean) {
+	const db = getDb();
+	const now = Date.now();
+	await db
+		.update(project)
+		.set({
+			adminSidebarHiddenAt: hidden ? now : null,
+			updatedAt: now
+		})
+		.where(eq(project.id, projectId));
 }
 
 export async function assignReviewPair(params: {
@@ -674,7 +728,8 @@ export async function startNextProjectBatch(submitterId: string) {
 		codeReviewJson: null,
 		submissionProgress: 'awaiting_repo',
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		adminSidebarHiddenAt: null
 	});
 	return { ok: true as const, projectId: id };
 }

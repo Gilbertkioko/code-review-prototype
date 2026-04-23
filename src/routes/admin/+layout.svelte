@@ -10,8 +10,10 @@
 	variant="admin"
 	adminDashboardActive={data.adminIsDashboard}
 	adminUsersActive={data.adminUsersActive}
+	adminSettingsActive={data.adminSettingsActive}
 	adminSidebarProjects={data.sidebarProjects}
 	adminCurrentProjectId={data.adminProjectRouteId}
+	adminProjectSection={data.adminProjectSection}
 >
 	{@render children()}
 </PrototypePageShell>
