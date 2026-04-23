@@ -1,5 +1,9 @@
 # Fly.io — https://fly.io/docs/reference/configuration/
 #
+# Socket.IO (in-memory Engine.IO): Fly’s default is **two** Machines for `[http_service]` apps, so `/socket.io`
+# polls hit different VMs → HTTP 400 on `sid`. Use one Machine: `fly scale count 1`, and CI uses `fly deploy --ha=false`.
+# Multi-machine needs Redis adapter + sticky sessions or fly-replay (see Fly “sticky sessions” blueprint).
+#
 # First time:
 #   fly auth login
 #   fly apps create code-review-sprint   # or another name, then set `app` below

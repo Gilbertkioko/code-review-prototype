@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
+      # Default Fly HA is 2 Machines; Socket.IO sessions are in-memory → load balancing breaks polling (HTTP 400 on sid).
+      # --ha=false keeps a single Machine unless you scale up and add Redis/sticky routing.
+      - run: flyctl deploy --remote-only --ha=false
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
