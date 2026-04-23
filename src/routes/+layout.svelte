@@ -5,6 +5,7 @@
 	import { APP_STATE_STORAGE_KEY, getApp } from '$lib/appState.svelte';
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
 	import { realtimeClientLog } from '$lib/realtimeDebug';
+	import { cancelDebouncedInvalidateAll, scheduleDebouncedInvalidateAll } from '$lib/realtimeInvalidate';
 	import { getRealtimeSocket } from '$lib/socket';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
@@ -30,19 +31,23 @@
 
 		const sessionUser = data.sessionUser;
 
-		const bump = (source: string) => {
+		const bumpImmediate = (source: string) => {
 			realtimeClientLog('invalidateAll()', { source });
 			void invalidateAll();
 		};
-		const onWorkspace = () => bump('socket:workspace:invalidate');
-		const onReview = () => bump('socket:review:invalidate');
+		const bumpFromSocket = (source: string) => {
+			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
+			scheduleDebouncedInvalidateAll(source);
+		};
+		const onWorkspace = () => bumpFromSocket('socket:workspace:invalidate');
+		const onReview = () => bumpFromSocket('socket:review:invalidate');
 		socket.on('workspace:invalidate', onWorkspace);
 		socket.on('review:invalidate', onReview);
 
 		const armPoll = () => {
 			if (pollTimer) return;
 			realtimeClientLog('polling fallback ON (every 5s) — socket not usable');
-			pollTimer = setInterval(() => bump('poll:fallback'), 5000);
+			pollTimer = setInterval(() => bumpImmediate('poll:fallback'), 5000);
 		};
 		const disarmPoll = () => {
 			if (pollTimer) {
@@ -107,6 +112,7 @@
 			socket.off('connect', onConnect);
 			socket.off('disconnect', onDisconnect);
 			socket.off('connect_error', onConnectError);
+			cancelDebouncedInvalidateAll();
 			disarmPoll();
 			if (bootTimer) clearTimeout(bootTimer);
 		};

@@ -250,6 +250,30 @@ function load(): Snapshot {
 
 const data = $state(load());
 
+/** Per-thread POST in flight (live sync) — prevents double-submit and drives send-button UI. */
+const codeReviewCommentSending = $state<Record<string, boolean>>({});
+const testingCommentSending = $state<Record<string, boolean>>({});
+
+function codeReviewSendLockKey(catId: string, obsId: string, who: Role) {
+	return `${catId}:${obsId}:${who}`;
+}
+
+function testingSendLockKey(itemId: string, who: Role) {
+	return `${itemId}:${who}`;
+}
+
+export function isCodeReviewCommentSending(catId: string, obsId: string): boolean {
+	const who = data.role;
+	if (who !== 'jane' && who !== 'joe' && who !== 'sandra') return false;
+	return Boolean(codeReviewCommentSending[codeReviewSendLockKey(catId, obsId, who)]);
+}
+
+export function isTestingCommentSending(itemId: string): boolean {
+	const who = data.role;
+	if (who !== 'jane' && who !== 'joe' && who !== 'sandra') return false;
+	return Boolean(testingCommentSending[testingSendLockKey(itemId, who)]);
+}
+
 /** When set, overrides static `CATEGORIES[].assignee` for paired review rooms. */
 let categoryAssigneeOverride = $state<Record<string, 'jane' | 'joe'> | null>(null);
 
@@ -375,19 +399,26 @@ export async function postTestingComment(itemId: string) {
 	}
 	const collab = getActiveCollaboration();
 	if (collab?.projectId) {
-		const ok = await postFormReviewAction('appendTestingMessage', {
-			itemId,
-			authorPersona: role,
-			body: raw,
-			round: String(data.testingRound)
-		});
-		if (!ok.ok) {
-			pushToast('Could not sync comment.');
+		const lk = testingSendLockKey(itemId, role);
+		if (testingCommentSending[lk]) return;
+		testingCommentSending[lk] = true;
+		try {
+			const ok = await postFormReviewAction('appendTestingMessage', {
+				itemId,
+				authorPersona: role,
+				body: raw,
+				round: String(data.testingRound)
+			});
+			if (!ok.ok) {
+				pushToast('Could not sync comment.');
+				return;
+			}
+			item.drafts = { ...item.drafts, [key]: '' };
+			pushToast(role === 'sandra' ? 'Your note was added for reviewers.' : 'Comment posted.');
 			return;
+		} finally {
+			delete testingCommentSending[lk];
 		}
-		item.drafts = { ...item.drafts, [key]: '' };
-		pushToast(role === 'sandra' ? 'Your note was added for reviewers.' : 'Comment posted.');
-		return;
 	}
 	item.comments.push({
 		id: uid(),
@@ -639,20 +670,27 @@ export async function postCodeReviewComment(catId: string, obsId: string) {
 	}
 	const collab = getActiveCollaboration();
 	if (collab?.projectId) {
-		const ok = await postFormReviewAction('appendCodeReviewMessage', {
-			categoryId: catId,
-			observationId: obsId,
-			authorPersona: role,
-			body: raw,
-			round: String(data.codeReviewRound)
-		});
-		if (!ok.ok) {
-			pushToast('Could not sync comment.');
+		const lk = codeReviewSendLockKey(catId, obsId, role);
+		if (codeReviewCommentSending[lk]) return;
+		codeReviewCommentSending[lk] = true;
+		try {
+			const ok = await postFormReviewAction('appendCodeReviewMessage', {
+				categoryId: catId,
+				observationId: obsId,
+				authorPersona: role,
+				body: raw,
+				round: String(data.codeReviewRound)
+			});
+			if (!ok.ok) {
+				pushToast('Could not sync comment.');
+				return;
+			}
+			row.drafts = { ...row.drafts, [key]: '' };
+			pushToast(role === 'sandra' ? 'Your note was added for reviewers.' : 'Comment posted.');
 			return;
+		} finally {
+			delete codeReviewCommentSending[lk];
 		}
-		row.drafts = { ...row.drafts, [key]: '' };
-		pushToast(role === 'sandra' ? 'Your note was added for reviewers.' : 'Comment posted.');
-		return;
 	}
 	row.comments.push({
 		id: uid(),

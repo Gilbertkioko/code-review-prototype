@@ -2,6 +2,7 @@
 	import {
 		getApp,
 		getPersonaDisplayLabel,
+		isTestingCommentSending,
 		postTestingComment,
 		reviewerCommentCount,
 		setTestingDraft,
@@ -35,6 +36,7 @@
 	const threadPeopleLabel = $derived(
 		`${getPersonaDisplayLabel('jane')} & ${getPersonaDisplayLabel('joe')}`
 	);
+	const commentSending = $derived(isTestingCommentSending(item.id));
 	const owner = $derived(item.mandatoryOwner ?? null);
 	const flagged = $derived(
 		item.section === 'mandatory' && owner
@@ -211,13 +213,16 @@
 						></textarea>
 						<button
 							type="button"
-							class="absolute bottom-2 right-2 rounded-md p-2 text-kood-accent hover:bg-kood-accent/10 disabled:pointer-events-none disabled:opacity-35"
+							class="absolute bottom-2 right-2 rounded-md p-2 text-kood-accent hover:bg-kood-accent/10 disabled:pointer-events-none disabled:opacity-35 {commentSending
+								? 'cursor-wait opacity-50'
+								: ''}"
 							aria-label="Send comment"
-							disabled={!(item.drafts[self]?.trim())}
+							aria-busy={commentSending}
+							disabled={!(item.drafts[self]?.trim()) || commentSending}
 							onclick={() => postTestingComment(item.id)}
 						>
 							<svg
-								class="size-[18px]"
+								class="size-[18px] {commentSending ? 'motion-safe:animate-pulse' : ''}"
 								viewBox="0 0 24 24"
 								fill="none"
 								stroke="currentColor"
@@ -249,13 +254,16 @@
 						></textarea>
 						<button
 							type="button"
-							class="absolute bottom-2 right-2 rounded-md p-2 text-kood-accent hover:bg-kood-accent/15 disabled:pointer-events-none disabled:opacity-35"
+							class="absolute bottom-2 right-2 rounded-md p-2 text-kood-accent hover:bg-kood-accent/15 disabled:pointer-events-none disabled:opacity-35 {commentSending
+								? 'cursor-wait opacity-50'
+								: ''}"
 							aria-label="Send reply"
-							disabled={!(item.drafts.sandra?.trim())}
+							aria-busy={commentSending}
+							disabled={!(item.drafts.sandra?.trim()) || commentSending}
 							onclick={() => postTestingComment(item.id)}
 						>
 							<svg
-								class="size-[18px]"
+								class="size-[18px] {commentSending ? 'motion-safe:animate-pulse' : ''}"
 								viewBox="0 0 24 24"
 								fill="none"
 								stroke="currentColor"
