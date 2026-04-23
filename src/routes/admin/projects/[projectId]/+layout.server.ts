@@ -12,6 +12,7 @@ import {
 } from '$lib/server/review-audit';
 import type { AuditThreadEntry } from '$lib/server/review-audit';
 import {
+	adminProjectDisplayTitle,
 	getPairForProject,
 	getProjectById,
 	listCodeReviewObservationProgressForProject,
@@ -112,8 +113,14 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 	const testingThreadGroups = groupAuditThreads(relabelThreadEntries(testingThreads, room));
 	const codeReviewThreadGroups = groupAuditThreads(relabelThreadEntries(codeReviewThreads, room));
 
+	const projectDisplayTitle = adminProjectDisplayTitle(
+		projectRow.giteaUrl,
+		projectRow.instructions
+	);
+
 	return {
 		project: projectRow,
+		projectDisplayTitle,
 		pair,
 		submitterName: room.submitterUsername,
 		reviewerAName: room.reviewerAUsername,

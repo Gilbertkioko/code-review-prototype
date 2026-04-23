@@ -9,9 +9,6 @@
 		getApp,
 		getPersonaDisplayLabel,
 		pushToast,
-		reviewerCategoriesPossessivePhrase,
-		reviewerSlotDisplayLabel,
-		submitterDiscussionLabel,
 		toggleStandup
 	} from '$lib/appState.svelte';
 	import { formatShortTimestamp } from '$lib/features/testing/testingUtils';
@@ -36,30 +33,12 @@
 		'Agreed what “done” means for this review before moving to Accept project.'
 	]);
 
-	const maxTakeawayChars = 2000;
+	const maxTakeaways = 2000;
+	const takeawayThread = $derived(app.standupTakeawayMessages);
 
 	let takeawayDraft = $state('');
 	let threadSaving = $state(false);
 	let threadScrollEl: HTMLDivElement | undefined = $state();
-
-	function dayKey(iso: string): string {
-		const d = new Date(iso);
-		if (Number.isNaN(d.getTime())) return '';
-		return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-	}
-
-	function dayChipLabel(iso: string): string {
-		const d = new Date(iso);
-		if (Number.isNaN(d.getTime())) return '—';
-		const today = new Date();
-		const sameDay = (x: Date, y: Date) =>
-			x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
-		if (sameDay(d, today)) return 'Today';
-		const y = new Date(today);
-		y.setDate(y.getDate() - 1);
-		if (sameDay(d, y)) return 'Yesterday';
-		return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-	}
 
 	function bubbleClasses(m: StandupTakeawayMessage): string {
 		const own = m.author === app.role;
@@ -91,7 +70,9 @@
 	async function submitStandupToServer() {
 		await tick();
 		if (!project?.id) {
-			pushToast('No project linked — open this screen from your assigned review (signed-in submitter or reviewer).');
+			pushToast(
+				'No project linked — open this screen from your assigned review (signed-in submitter or reviewer).'
+			);
 			return;
 		}
 		threadSaving = true;
@@ -137,6 +118,11 @@
 			This phase is the <strong class="text-kood-text/90">live</strong> debrief after the async sprint. Staff or
 			experts may drop in occasionally — keep the channel name and time visible for everyone.
 		</p>
+		{#if project?.id}
+			<p class="text-[11px] text-kood-muted/90">
+				Linked project: notes and thread sync to the server for the team and admin overview.
+			</p>
+		{/if}
 	</header>
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
@@ -170,11 +156,11 @@
 		</p>
 		<ol class="mt-4 list-decimal space-y-3 pl-5 text-sm text-kood-text/90">
 			<li>
-				<strong class="text-kood-text">You</strong> — Security &amp; correctness: findings, feedback, fixes.
+				<strong class="text-kood-text">{janeName}</strong> — Security &amp; correctness: findings, feedback, fixes.
 			</li>
 			<li>
-				<strong class="text-kood-text">Joe</strong> — Performance &amp; structure &amp; architecture: findings, feedback,
-				fixes.
+				<strong class="text-kood-text">{joeName}</strong> — Performance &amp; structure &amp; architecture: findings,
+				feedback, fixes.
 			</li>
 			<li>
 				<strong class="text-kood-text">Cross-review</strong> — How each reviewer engaged with the other’s focus
@@ -192,14 +178,70 @@
 	</section>
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
-		<h3 class="text-sm font-semibold text-kood-text">Meeting summary</h3>
+		<h3 class="text-sm font-semibold text-kood-text">Takeaways thread</h3>
+		<p class="mt-2 text-xs text-kood-muted">
+			Short posts from each participant (synced when a project is linked). Timestamps are local to the poster’s
+			browser.
+		</p>
+		<div
+			bind:this={threadScrollEl}
+			class="mt-3 flex max-h-72 flex-col gap-2 overflow-y-auto rounded-lg border border-kood-border bg-kood-bg/40 px-2 py-3"
+		>
+			{#if takeawayThread.length === 0}
+				<p class="px-2 text-center text-xs text-kood-muted">No messages yet — add the first takeaway below.</p>
+			{:else}
+				{#each takeawayThread as m (m.id)}
+					<div class={`flex ${m.author === app.role ? 'justify-end' : 'justify-start'}`}>
+						<div class={bubbleClasses(m)}>
+							<p class="text-[10px] font-medium text-kood-muted/90">
+								{getPersonaDisplayLabel(m.author)}
+								{#if m.at}
+									· {formatShortTimestamp(m.at)}
+								{/if}
+							</p>
+							<p class="mt-1 whitespace-pre-wrap text-kood-text/95">{m.text}</p>
+						</div>
+					</div>
+				{/each}
+			{/if}
+		</div>
+		<div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+			<label class="min-w-0 flex-1 text-xs text-kood-muted">
+				<span class="mb-1 block font-medium text-kood-text/90">Add takeaway</span>
+				<textarea
+					bind:value={takeawayDraft}
+					rows="2"
+					maxlength={maxTakeaways}
+					disabled={threadSaving}
+					class="mt-1 w-full resize-y rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted/70"
+					placeholder="Action item, decision, or reflection…"
+				></textarea>
+			</label>
+			<button
+				type="button"
+				disabled={threadSaving || !takeawayDraft.trim()}
+				class="shrink-0 rounded-lg bg-kood-accent px-4 py-2 text-xs font-bold text-kood-accent-foreground disabled:opacity-40"
+				onclick={() => postTakeaway()}>Post</button
+			>
+		</div>
+		{#if project?.id}
+			<button
+				type="button"
+				disabled={threadSaving}
+				class="mt-3 text-xs font-medium text-kood-accent underline decoration-kood-accent/40 disabled:opacity-40"
+				onclick={() => submitStandupToServer()}>Sync meeting details &amp; thread to server</button
+			>
+		{/if}
+	</section>
+
+	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
+		<h3 class="text-sm font-semibold text-kood-text">Meeting summary (long form)</h3>
 		<p class="mt-2 text-xs text-kood-muted">
 			Good notes speed up learning and future reviews. Be clear, specific, and actionable.
 		</p>
-		<p class="mt-3 text-xs font-medium text-kood-text/90">Takeaways from this session</p>
+		<p class="mt-3 text-xs font-medium text-kood-text/90">Free-form notes</p>
 		<p class="mt-1 text-[11px] text-kood-muted">
 			What was discussed · Key feedback · Action items · Participants’ reflection
-			<span class="block text-kood-muted/70">(Prototype: always editable.)</span>
 		</p>
 		<textarea
 			class="mt-2 min-h-[140px] w-full resize-y rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted/70"
@@ -214,7 +256,7 @@
 
 	<div>
 		<h3 class="text-sm font-semibold text-kood-text">Checklist</h3>
-		<p class="mt-1 text-xs text-kood-muted">Check each item when it is true for this call.</p>
+		<p class="mt-1 text-xs text-kood-muted">Check each item when it is true for this call (submitter checklist).</p>
 		<ul class="mt-4 space-y-3">
 			{#each agenda as line, i (i)}
 				<li class="flex items-start gap-3 rounded-xl border border-kood-border bg-kood-bg/40 p-4">

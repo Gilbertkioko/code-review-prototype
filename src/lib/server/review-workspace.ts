@@ -2,6 +2,7 @@ import { CATEGORIES } from '$lib/constants';
 import type { CategorySession, TestingItem } from '$lib/types';
 import { parseCodeReviewSavePayload } from './code-review-payload';
 import { and, asc, desc, eq, ne, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import { generateIdFromEntropySize } from 'lucia';
 import { getDb } from './db';
 import {
@@ -172,6 +173,96 @@ export async function listProjectsWithSubmittersForAdmin() {
 		.from(project)
 		.innerJoin(user, eq(project.submitterId, user.id))
 		.orderBy(desc(project.createdAt));
+}
+
+/** Last path segment of a Gitea URL, humanized (e.g. `mobile-dev` → "mobile dev"). */
+function repoPathTailAsLabel(url: string | null): string | null {
+	if (!url?.trim()) return null;
+	try {
+		const u = new URL(url.trim());
+		const parts = u.pathname.replace(/\/+/g, '/').replace(/\/$/, '').split('/').filter(Boolean);
+		const last = parts[parts.length - 1];
+		if (!last) return null;
+		let base = decodeURIComponent(last);
+		if (base.endsWith('.git')) base = base.slice(0, -4);
+		const t = base.replace(/[-_]+/g, ' ').trim();
+		return t.length > 0 ? t : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Short label for admin lists (sidebar, cards): prefers repo name from Gitea URL, else first non-empty
+ * line of submitter instructions when it differs from the default template.
+ */
+export function adminProjectDisplayTitle(giteaUrl: string | null, instructions: string): string {
+	const fromRepo = repoPathTailAsLabel(giteaUrl);
+	if (fromRepo) {
+		const t = fromRepo.replace(/\s+/g, ' ');
+		const capped = t.length ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+		return capped.length > 64 ? `${capped.slice(0, 61)}…` : capped;
+	}
+	const raw = instructions.trim();
+	if (raw && raw !== DEFAULT_PROJECT_INSTRUCTIONS) {
+		const line = raw.split(/\r?\n/).find((l) => l.trim()) ?? raw;
+		const t = line.trim().replace(/\s+/g, ' ');
+		if (t.length > 56) return `${t.slice(0, 53)}…`;
+		return t;
+	}
+	return 'Code review batch';
+}
+
+/** One row per project for admin sidebar: submitter + optional paired reviewers (single query). */
+export type AdminSidebarProject = {
+	id: string;
+	status: string;
+	giteaUrl: string | null;
+	createdAt: number;
+	/** Human-facing batch name (repo slug or instructions). */
+	displayTitle: string;
+	submitterUsername: string;
+	submitterEmail: string;
+	reviewerAUsername: string | null;
+	reviewerBUsername: string | null;
+};
+
+export async function listAdminSidebarProjects(): Promise<AdminSidebarProject[]> {
+	const db = getDb();
+	const submitter = alias(user, 'submitter');
+	const reviewerAUser = alias(user, 'reviewer_a');
+	const reviewerBUser = alias(user, 'reviewer_b');
+
+	const rows = await db
+		.select({
+			id: project.id,
+			status: project.status,
+			giteaUrl: project.giteaUrl,
+			instructions: project.instructions,
+			createdAt: project.createdAt,
+			submitterUsername: submitter.username,
+			submitterEmail: submitter.email,
+			reviewerAUsername: reviewerAUser.username,
+			reviewerBUsername: reviewerBUser.username
+		})
+		.from(project)
+		.innerJoin(submitter, eq(project.submitterId, submitter.id))
+		.leftJoin(reviewPair, eq(reviewPair.projectId, project.id))
+		.leftJoin(reviewerAUser, eq(reviewPair.reviewerAId, reviewerAUser.id))
+		.leftJoin(reviewerBUser, eq(reviewPair.reviewerBId, reviewerBUser.id))
+		.orderBy(desc(project.createdAt));
+
+	return rows.map((r) => ({
+		id: r.id,
+		status: r.status,
+		giteaUrl: r.giteaUrl,
+		createdAt: r.createdAt,
+		displayTitle: adminProjectDisplayTitle(r.giteaUrl, r.instructions),
+		submitterUsername: r.submitterUsername,
+		submitterEmail: r.submitterEmail,
+		reviewerAUsername: r.reviewerAUsername ?? null,
+		reviewerBUsername: r.reviewerBUsername ?? null
+	}));
 }
 
 export async function assignReviewPair(params: {

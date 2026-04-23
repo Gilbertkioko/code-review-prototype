@@ -1,20 +1,15 @@
 import { notifyAdminDashboard, notifyProjectReviewUpdate } from '$lib/server/review-live';
-import {
-	assignReviewPair,
-	listProjectsWithSubmittersForAdmin,
-	listUsersForAdmin,
-	markProjectCompleted
-} from '$lib/server/review-workspace';
+import { assignReviewPair, listUsersForAdmin, markProjectCompleted } from '$lib/server/review-workspace';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ parent }) => {
+	const { sidebarProjects } = await parent();
 	const users = await listUsersForAdmin();
-	const projects = await listProjectsWithSubmittersForAdmin();
-	const pairable = projects.filter((p) => p.status === 'repo_submitted');
-	const completed = projects.filter((p) => p.status === 'completed');
-	const active = projects.filter((p) => p.status !== 'completed');
-	return { users, projects, pairable, completed, active };
+	const pairable = sidebarProjects.filter((p) => p.status === 'repo_submitted');
+	const completed = sidebarProjects.filter((p) => p.status === 'completed');
+	const active = sidebarProjects.filter((p) => p.status !== 'completed');
+	return { users, pairable, completed, active };
 };
 
 export const actions: Actions = {

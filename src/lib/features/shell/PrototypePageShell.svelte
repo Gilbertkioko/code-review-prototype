@@ -8,16 +8,53 @@
 	import SidebarMeta from './SidebarMeta.svelte';
 	import type { Snippet } from 'svelte';
 
+	/** Mirrors server `AdminSidebarProject` — keep in sync for sidebar props (no server imports here). */
+	type AdminSidebarProjectBrief = {
+		id: string;
+		status: string;
+		createdAt: number;
+		displayTitle: string;
+		submitterUsername: string;
+		reviewerAUsername: string | null;
+		reviewerBUsername: string | null;
+	};
+
 	let {
 		children,
 		variant = 'workspace',
-		adminDashboardActive = false
+		adminDashboardActive = false,
+		adminSidebarProjects = [] as AdminSidebarProjectBrief[],
+		adminCurrentProjectId = null as string | null
 	}: {
 		children: Snippet;
 		variant?: 'workspace' | 'admin' | 'auth';
 		/** When `variant="admin"`, pass true on `/admin` so “Dashboard” shows as current. */
 		adminDashboardActive?: boolean;
+		/** Scrollable project list for admin navigation (from `+layout.server.ts`). */
+		adminSidebarProjects?: AdminSidebarProjectBrief[];
+		adminCurrentProjectId?: string | null;
 	} = $props();
+
+	function adminStatusLabel(status: string): string {
+		if (status === 'awaiting_link') return 'Awaiting repo';
+		if (status === 'repo_submitted') return 'Needs pair';
+		if (status === 'review_active') return 'In review';
+		if (status === 'completed') return 'Completed';
+		return status;
+	}
+
+	function adminStatusChipClass(status: string): string {
+		if (status === 'review_active') {
+			return 'bg-emerald-500/12 text-emerald-200/95 ring-1 ring-emerald-400/35';
+		}
+		if (status === 'repo_submitted') {
+			return 'bg-amber-500/12 text-amber-100/95 ring-1 ring-amber-400/35';
+		}
+		if (status === 'completed') {
+			return 'bg-kood-surface-raised text-kood-muted ring-1 ring-kood-border/70';
+		}
+		return 'bg-kood-bg/80 text-kood-muted ring-1 ring-kood-border/80';
+	}
 
 	const auth = getContext<{ sessionUser: SessionUser | null }>(AUTH_SESSION);
 </script>
@@ -39,7 +76,10 @@
 <div class="min-h-screen bg-kood-bg text-kood-text">
 	<div class="mx-auto flex min-h-screen max-w-[1700px] flex-col lg:flex-row">
 		<aside
-			class="flex w-full shrink-0 flex-col border-b border-kood-border lg:w-[240px] lg:border-b-0 lg:border-r lg:px-4 lg:py-5"
+			class="flex w-full shrink-0 flex-col border-b border-kood-border lg:border-b-0 lg:border-r lg:px-4 lg:py-5 {variant ===
+			'admin'
+				? 'lg:w-[300px]'
+				: 'lg:w-[240px]'}"
 		>
 			<div class="px-4 pt-4 lg:px-0 lg:pt-0">
 				<a href="/" class="block">
@@ -63,11 +103,70 @@
 							: 'text-kood-muted hover:bg-kood-surface-raised/80 hover:text-kood-text'}"
 						>Dashboard</a
 					>
+
+					<div class="mt-4 border-t border-kood-border/80 pt-3">
+						<p class="px-2 text-[10px] font-semibold uppercase tracking-wide text-kood-muted/90">
+							Projects ({adminSidebarProjects.length})
+						</p>
+						<p class="mt-1 px-2 text-[10px] leading-snug text-kood-muted/75">
+							Project name from repo or notes, then who submitted. Open for threads, standup, and 360°.
+						</p>
+						<ul class="mt-2 max-h-[min(48vh,26rem)] space-y-1 overflow-y-auto overscroll-contain pr-1">
+							{#if adminSidebarProjects.length === 0}
+								<li class="px-2 py-2 text-xs text-kood-muted">No projects yet.</li>
+							{:else}
+								{#each adminSidebarProjects as p (p.id)}
+									<li>
+										<a
+											href="/admin/projects/{p.id}"
+											class="block rounded-lg border px-2.5 py-2.5 transition {adminCurrentProjectId === p.id
+												? 'border-kood-accent/50 bg-kood-accent/10 text-kood-text'
+												: 'border-transparent hover:border-kood-border/60 hover:bg-kood-surface-raised/50'}"
+										>
+											<div class="flex items-start justify-between gap-2">
+												<p class="min-w-0 flex-1 leading-snug">
+													<span class="line-clamp-2 text-[12px] font-semibold tracking-tight text-kood-text"
+														>{p.displayTitle}</span
+													>
+												</p>
+												<span
+													class="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide {adminStatusChipClass(
+														p.status
+													)}">{adminStatusLabel(p.status)}</span
+												>
+											</div>
+											<p class="mt-1.5 text-[10px] text-kood-muted/90">
+												<span class="font-semibold uppercase tracking-wide text-kood-muted/70"
+													>Submitter</span
+												>
+												<span class="ml-1 font-mono text-[11px] text-kood-text/95">{p.submitterUsername}</span>
+											</p>
+											<p class="mt-0.5 truncate font-mono text-[9px] text-kood-muted/60" title={p.id}>
+												{p.id.slice(0, 6)}…{p.id.slice(-4)}
+											</p>
+											{#if p.reviewerAUsername || p.reviewerBUsername}
+												<p class="mt-1.5 border-t border-kood-border/40 pt-1.5 text-[10px] leading-snug text-kood-muted/90">
+													<span class="font-medium text-kood-text/75">Reviewers</span>
+													<span class="ml-1"
+														><span class="text-kood-muted">A</span>
+														{p.reviewerAUsername ?? '—'}</span
+													>
+													<span class="mx-0.5 text-kood-border/80">·</span>
+													<span class="text-kood-muted">B</span>
+													{p.reviewerBUsername ?? '—'}
+												</p>
+											{:else}
+												<p class="mt-1.5 text-[10px] italic text-kood-muted/70">No reviewer pair yet</p>
+											{/if}
+										</a>
+									</li>
+								{/each}
+							{/if}
+						</ul>
+					</div>
 				</nav>
 
-				<div class="min-h-0 flex-1" aria-hidden="true"></div>
-
-				<div class="space-y-3 border-t border-kood-border px-4 py-4 text-xs text-kood-muted lg:px-0 lg:pb-0">
+				<div class="mt-6 space-y-3 border-t border-kood-border px-4 py-4 text-xs text-kood-muted lg:px-0 lg:pb-0">
 					{#if auth.sessionUser}
 						<form method="post" action="/?/signout">
 							<button

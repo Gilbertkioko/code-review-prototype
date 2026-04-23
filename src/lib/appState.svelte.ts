@@ -12,6 +12,7 @@ import type {
 	Role,
 	SandraRating,
 	ReviewerRatingSet,
+	StandupTakeawayMessage,
 	TestingDecision,
 	TestingItem
 } from './types';
@@ -132,6 +133,7 @@ function createDemoSeededSnapshot() {
 		standupWhen: '',
 		standupVoiceChannel: '',
 		standupTakeaways: '',
+		standupTakeawayMessages: [] as StandupTakeawayMessage[],
 		sandraRatings: defaultSandraRatings(),
 		reviewerRatings: defaultReviewerRatings(),
 		xpMock: 0,
@@ -155,6 +157,7 @@ function createLiveInitialSnapshot() {
 		standupWhen: '',
 		standupVoiceChannel: '',
 		standupTakeaways: '',
+		standupTakeawayMessages: [] as StandupTakeawayMessage[],
 		sandraRatings: defaultSandraRatings(),
 		reviewerRatings: defaultReviewerRatings(),
 		xpMock: 0,
@@ -172,6 +175,84 @@ function createInitialSnapshot() {
 type Snapshot = ReturnType<typeof createInitialSnapshot>;
 
 const STANDUP_CHECKBOX_COUNT = 5;
+const STANDUP_THREAD_MAX_MESSAGES = 200;
+const STANDUP_MESSAGE_MAX_LEN = 2000;
+
+function parseStandupMessageArray(parsed: unknown): StandupTakeawayMessage[] {
+	const out: StandupTakeawayMessage[] = [];
+	if (!Array.isArray(parsed)) return out;
+	for (const x of parsed) {
+		if (!x || typeof x !== 'object') continue;
+		const m = x as Record<string, unknown>;
+		const author = m.author;
+		if (author !== 'sandra' && author !== 'jane' && author !== 'joe') continue;
+		const text =
+			typeof m.text === 'string' ? m.text.slice(0, STANDUP_MESSAGE_MAX_LEN).trim() : '';
+		if (!text) continue;
+		out.push({
+			id: typeof m.id === 'string' ? m.id : uid(),
+			author,
+			text,
+			at: typeof m.at === 'string' && m.at ? m.at : new Date().toISOString()
+		});
+		if (out.length >= STANDUP_THREAD_MAX_MESSAGES) break;
+	}
+	return out;
+}
+
+/** Standup slice embedded in persisted code-review JSON. */
+export type StandupSnapshot = {
+	standupWhen: string;
+	standupVoiceChannel: string;
+	standupTakeaways: string;
+	standupTakeawayMessages: StandupTakeawayMessage[];
+	standupItems: boolean[];
+};
+
+export function applyStandupFromServerPayload(su: Record<string, unknown>) {
+	const msgs = parseStandupMessageArray(su.standupTakeawayMessages);
+	const legacy =
+		typeof su.standupTakeaways === 'string' && su.standupTakeaways.trim()
+			? su.standupTakeaways.trim().slice(0, STANDUP_MESSAGE_MAX_LEN)
+			: '';
+	if (msgs.length > 0) {
+		data.standupTakeawayMessages = msgs;
+	} else if (legacy) {
+		data.standupTakeawayMessages = [
+			{
+				id: 'legacy',
+				author: 'sandra',
+				text: legacy,
+				at: ''
+			}
+		];
+	}
+	data.standupItems = normalizeStandupItems(su.standupItems, data.standupItems);
+	data.standupWhen = typeof su.standupWhen === 'string' ? su.standupWhen : data.standupWhen;
+	data.standupVoiceChannel =
+		typeof su.standupVoiceChannel === 'string' ? su.standupVoiceChannel : data.standupVoiceChannel;
+	if (typeof su.standupTakeaways === 'string') {
+		data.standupTakeaways = su.standupTakeaways;
+	}
+}
+
+export function addStandupTakeawayMessage(text: string) {
+	const role = data.role;
+	if (role !== 'sandra' && role !== 'jane' && role !== 'joe') return;
+	const trimmed = text.trim().slice(0, STANDUP_MESSAGE_MAX_LEN);
+	if (!trimmed) return;
+	const next: StandupTakeawayMessage = {
+		id: uid(),
+		author: role,
+		text: trimmed,
+		at: new Date().toISOString()
+	};
+	const merged = [...data.standupTakeawayMessages, next];
+	data.standupTakeawayMessages =
+		merged.length > STANDUP_THREAD_MAX_MESSAGES
+			? merged.slice(merged.length - STANDUP_THREAD_MAX_MESSAGES)
+			: merged;
+}
 
 function normalizeStandupItems(parsed: unknown, fallback: boolean[]): boolean[] {
 	const next = [...fallback];
@@ -279,13 +360,12 @@ export function patchReviewerRatingDraft(
 	};
 }
 
-function load(): Snapshot {
-	if (!browser) return createInitialSnapshot();
+function parseStoredJsonToSnapshot(raw: string | null): Snapshot {
+	if (!raw) return createLiveInitialSnapshot();
 	try {
-		const raw = localStorage.getItem(APP_STATE_STORAGE_KEY);
-		if (!raw) return createInitialSnapshot();
 		const p = JSON.parse(raw) as Partial<Snapshot>;
 		const base = createLiveInitialSnapshot();
+		const thread = parseStandupMessageArray(p.standupTakeawayMessages);
 		return {
 			...base,
 			...p,
@@ -298,7 +378,7 @@ function load(): Snapshot {
 					? p.codeReviewRound
 					: base.codeReviewRound,
 			reviewerRatings: p.reviewerRatings
-				? { ...base.reviewerRatings, ...p.reviewerRatings }
+				? normalizeReviewerRatingsFromServer(p.reviewerRatings)
 				: base.reviewerRatings,
 			sandraRatings: normalizeSandraRatings(p.sandraRatings),
 			standupItems: normalizeStandupItems(p.standupItems, base.standupItems),
@@ -307,6 +387,7 @@ function load(): Snapshot {
 				typeof p.standupVoiceChannel === 'string' ? p.standupVoiceChannel : base.standupVoiceChannel,
 			standupTakeaways:
 				typeof p.standupTakeaways === 'string' ? p.standupTakeaways : base.standupTakeaways,
+			standupTakeawayMessages: thread.length > 0 ? thread : base.standupTakeawayMessages,
 			reviewerAssignmentAccepted: normalizeReviewerAssignmentAccepted(
 				p.reviewerAssignmentAccepted,
 				base.reviewerAssignmentAccepted
@@ -348,6 +429,7 @@ function assignSnapshotToRuntimeState(snap: Snapshot) {
 	data.standupWhen = snap.standupWhen;
 	data.standupVoiceChannel = snap.standupVoiceChannel;
 	data.standupTakeaways = snap.standupTakeaways;
+	data.standupTakeawayMessages = snap.standupTakeawayMessages.map((m) => ({ ...m }));
 	data.reviewerAssignmentAccepted = snap.reviewerAssignmentAccepted;
 	data.sandraRatings = snap.sandraRatings;
 	data.reviewerRatings = snap.reviewerRatings;
@@ -714,7 +796,7 @@ export function exportCodeReviewWorkspaceForPersistence(): {
 		standup: {
 			standupWhen: data.standupWhen,
 			standupVoiceChannel: data.standupVoiceChannel,
-			standupTakeaways: '',
+			standupTakeaways: data.standupTakeaways,
 			standupTakeawayMessages: data.standupTakeawayMessages.map((m) => ({ ...m })),
 			standupItems: [...data.standupItems]
 		},
@@ -948,10 +1030,12 @@ export function goToStandup() {
 }
 
 export function toggleStandup(i: number) {
+	if (data.role !== 'sandra') return;
 	if (i >= 0 && i < STANDUP_CHECKBOX_COUNT) data.standupItems[i] = !data.standupItems[i];
 }
 
 export function completeStandup() {
+	if (data.role !== 'sandra') return;
 	if (!data.standupItems.every(Boolean)) {
 		pushToast('Check off all standup agenda items to continue.');
 		return;
