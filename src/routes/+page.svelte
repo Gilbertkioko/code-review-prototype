@@ -187,7 +187,7 @@
 	{:else if app.phase === 'accept_project'}
 		<AcceptView />
 	{:else if app.phase === 'feedback_360'}
-		<Feedback360View />
+		<Feedback360View project={reviewSaveContext?.project ?? null} />
 	{/if}
 </PrototypePageShell>
 

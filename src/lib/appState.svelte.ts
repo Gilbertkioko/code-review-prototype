@@ -217,9 +217,73 @@ function normalizeSandraRatings(parsed: unknown): SandraRating[] {
 	});
 }
 
-function parseStoredJsonToSnapshot(raw: string | null): Snapshot {
-	if (!raw) return createLiveInitialSnapshot();
+function mergeReviewerRatingMini(
+	base: { score: number | null; comment: string; submitted: boolean },
+	raw: unknown
+): { score: number | null; comment: string; submitted: boolean } {
+	if (!raw || typeof raw !== 'object') return { ...base };
+	const o = raw as Record<string, unknown>;
+	let score: number | null = base.score;
+	if (o.score === null) score = null;
+	else if (typeof o.score === 'number' && o.score >= 1 && o.score <= 5) score = o.score;
+	return {
+		score,
+		comment: typeof o.comment === 'string' ? o.comment : base.comment,
+		submitted: typeof o.submitted === 'boolean' ? o.submitted : base.submitted
+	};
+}
+
+function normalizeReviewerRatingsFromServer(parsed: unknown): Record<'jane' | 'joe', ReviewerRatingSet> {
+	const base = defaultReviewerRatings();
+	if (!parsed || typeof parsed !== 'object') return base;
+	const o = parsed as Record<string, unknown>;
+	function slot(key: 'jane' | 'joe'): ReviewerRatingSet {
+		const raw = o[key];
+		const b = base[key];
+		if (!raw || typeof raw !== 'object') return { ...b };
+		const u = raw as Record<string, unknown>;
+		return {
+			readableCode: mergeReviewerRatingMini(b.readableCode, u.readableCode),
+			codeComments: mergeReviewerRatingMini(b.codeComments, u.codeComments),
+			crossReviewer: mergeReviewerRatingMini(b.crossReviewer, u.crossReviewer)
+		};
+	}
+	return { jane: slot('jane'), joe: slot('joe') };
+}
+
+/** Immutable patch so Svelte 5 updates `<select>` / controlled fields reliably. */
+export function patchSandraRatingDraft(categoryId: string, patch: Partial<Pick<SandraRating, 'score' | 'comment'>>) {
+	const i = data.sandraRatings.findIndex((x) => x.categoryId === categoryId);
+	if (i < 0) return;
+	const r = data.sandraRatings[i];
+	if (r.submitted) return;
+	data.sandraRatings = data.sandraRatings.map((x, j) =>
+		j === i ? { ...x, ...patch } : x
+	);
+}
+
+export function patchReviewerRatingDraft(
+	reviewer: 'jane' | 'joe',
+	key: keyof ReviewerRatingSet,
+	patch: Partial<{ score: number | null; comment: string }>
+) {
+	const set = data.reviewerRatings[reviewer];
+	const block = set[key];
+	if (block.submitted) return;
+	data.reviewerRatings = {
+		...data.reviewerRatings,
+		[reviewer]: {
+			...set,
+			[key]: { ...block, ...patch }
+		}
+	};
+}
+
+function load(): Snapshot {
+	if (!browser) return createInitialSnapshot();
 	try {
+		const raw = localStorage.getItem(APP_STATE_STORAGE_KEY);
+		if (!raw) return createInitialSnapshot();
 		const p = JSON.parse(raw) as Partial<Snapshot>;
 		const base = createLiveInitialSnapshot();
 		return {
@@ -637,11 +701,38 @@ export function exportCodeReviewWorkspaceForPersistence(): {
 	version: 1;
 	codeReviewRound: number;
 	categorySessions: Record<string, CategorySession>;
+	standup: StandupSnapshot;
+	feedback360: {
+		sandraRatings: SandraRating[];
+		reviewerRatings: Record<'jane' | 'joe', ReviewerRatingSet>;
+	};
 } {
 	return {
 		version: 1,
 		codeReviewRound: data.codeReviewRound,
-		categorySessions: exportCategorySessionsForPersistence()
+		categorySessions: exportCategorySessionsForPersistence(),
+		standup: {
+			standupWhen: data.standupWhen,
+			standupVoiceChannel: data.standupVoiceChannel,
+			standupTakeaways: '',
+			standupTakeawayMessages: data.standupTakeawayMessages.map((m) => ({ ...m })),
+			standupItems: [...data.standupItems]
+		},
+		feedback360: {
+			sandraRatings: data.sandraRatings.map((r) => ({ ...r })),
+			reviewerRatings: {
+				jane: {
+					readableCode: { ...data.reviewerRatings.jane.readableCode },
+					codeComments: { ...data.reviewerRatings.jane.codeComments },
+					crossReviewer: { ...data.reviewerRatings.jane.crossReviewer }
+				},
+				joe: {
+					readableCode: { ...data.reviewerRatings.joe.readableCode },
+					codeComments: { ...data.reviewerRatings.joe.codeComments },
+					crossReviewer: { ...data.reviewerRatings.joe.crossReviewer }
+				}
+			}
+		}
 	};
 }
 
@@ -678,6 +769,18 @@ export function importCategorySessionsFromServer(patch: unknown) {
 		data.codeReviewRound = root.codeReviewRound;
 	}
 	data.categorySessions = mergeCategorySessions(initialCategorySessions(), sessions);
+	const su = root.standup;
+	if (su && typeof su === 'object') applyStandupFromServerPayload(su as Record<string, unknown>);
+	const fb = root.feedback360;
+	if (fb && typeof fb === 'object') {
+		const o = fb as Record<string, unknown>;
+		if (Array.isArray(o.sandraRatings)) {
+			data.sandraRatings = normalizeSandraRatings(o.sandraRatings);
+		}
+		if (o.reviewerRatings && typeof o.reviewerRatings === 'object') {
+			data.reviewerRatings = normalizeReviewerRatingsFromServer(o.reviewerRatings);
+		}
+	}
 }
 
 export function setCodeReviewVerdict(
