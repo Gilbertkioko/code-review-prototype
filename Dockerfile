@@ -16,7 +16,11 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build
+# `vite build` runs SvelteKit postbuild analyse, which imports server modules (e.g. `auth` → `getDb()`).
+# Fly secrets are not available during `docker build`, so use an in-memory SQLite URL for this stage only.
+ENV DATABASE_URL=file::memory:?cache=shared
+
+RUN npm run prepare && npm run build
 
 # --- runtime ---
 
