@@ -1,21 +1,66 @@
 import { browser } from '$app/environment';
+import { env } from '$env/dynamic/public';
 import { io, type Socket } from 'socket.io-client';
 import { realtimeClientLog } from './realtimeDebug';
 
 let singleton: Socket | null = null;
+let connectErrorStreak = 0;
+/** After repeated handshake failures, do not recreate the client until a full reload (avoids a create↔404 loop). */
+let gaveUpUntilReload = false;
+
+/** Stop xhr polling /socket.io after this many failed handshakes (e.g. Vercel 404 — no Node Socket.IO server). */
+const CONNECT_ERRORS_BEFORE_DISABLE = 4;
+
+function realtimeDisabledByEnv(): boolean {
+	const v = env.PUBLIC_REALTIME_SOCKET;
+	return v === '0' || v === 'false';
+}
+
+function tearDownSingleton() {
+	if (!singleton) return;
+	singleton.io.reconnection(false);
+	singleton.disconnect();
+	singleton.removeAllListeners();
+	singleton = null;
+	connectErrorStreak = 0;
+}
 
 /**
- * One Socket.IO client for the app (Vite dev + custom Node server). Reuse so `joinUser` / `joinProject` share a room.
- * On Vercel serverless, the server has no long-lived Socket.IO attach — connection fails and `+layout` falls back to polling.
+ * Socket.IO when a Node server attaches it (`vite` plugin / `node server.js`).
+ * On Vercel serverless there is no `/socket.io` — set `PUBLIC_REALTIME_SOCKET=0` to skip the client entirely,
+ * or the client disables itself after repeated connect failures to avoid 404 spam.
  */
 export function getRealtimeSocket(): Socket | null {
 	if (!browser) return null;
+	if (realtimeDisabledByEnv()) {
+		gaveUpUntilReload = false;
+		tearDownSingleton();
+		return null;
+	}
+	if (gaveUpUntilReload) return null;
 	if (!singleton) {
 		realtimeClientLog('creating Socket.IO client', { path: '/socket.io', origin: window.location.origin });
 		singleton = io({
 			path: '/socket.io',
 			withCredentials: true,
-			autoConnect: true
+			autoConnect: true,
+			reconnectionAttempts: 12,
+			reconnectionDelay: 1500,
+			reconnectionDelayMax: 12000,
+			timeout: 20000
+		});
+		singleton.on('connect', () => {
+			connectErrorStreak = 0;
+		});
+		singleton.on('connect_error', () => {
+			connectErrorStreak += 1;
+			if (connectErrorStreak >= CONNECT_ERRORS_BEFORE_DISABLE) {
+				realtimeClientLog(
+					'socket: client stopped after repeated failures — use Node host for Socket.IO, or set PUBLIC_REALTIME_SOCKET=0 on Vercel'
+				);
+				gaveUpUntilReload = true;
+				tearDownSingleton();
+			}
 		});
 	}
 	return singleton;

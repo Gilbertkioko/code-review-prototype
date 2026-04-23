@@ -67,15 +67,18 @@
 		setActiveCollaboration({ projectId: p.id, userId: w.viewerId });
 		const socket = getRealtimeSocket();
 		const projectId = p.id;
+		if (!socket) {
+			return () => setActiveCollaboration(null);
+		}
 		const joinProjectRoom = () => {
 			realtimeClientLog('emit joinProject', projectId.slice(0, 8) + '…');
-			socket?.emit('joinProject', projectId);
+			socket.emit('joinProject', projectId);
 		};
-		socket?.on('connect', joinProjectRoom);
+		socket.on('connect', joinProjectRoom);
 		joinProjectRoom();
 		return () => {
-			socket?.off('connect', joinProjectRoom);
-			socket?.emit('leaveProject', projectId);
+			socket.off('connect', joinProjectRoom);
+			socket.emit('leaveProject', projectId);
 			setActiveCollaboration(null);
 		};
 	});

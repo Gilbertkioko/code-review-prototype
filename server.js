@@ -1,6 +1,6 @@
 /**
- * Custom Node server with Socket.IO. Requires `@sveltejs/adapter-node` and `vite build`
- * producing `./build/handler.js`. For Vercel use `@sveltejs/adapter-vercel` and `npm start` / `vite preview` instead.
+ * Production entry: SvelteKit (`adapter-node` → `./build/handler.js`) + Socket.IO on one HTTP server.
+ * Fly.io / Docker: `CMD ["node", "server.js"]`. Local: `npm run build && npm start`.
  */
 import http from 'node:http';
 import process from 'node:process';

@@ -3,6 +3,8 @@ import { createFullTestingItems, withMandatoryOwners } from '$lib/features/testi
 import type { CategorySession, TestingDecision, TestingItem } from '$lib/types';
 import { and, eq } from 'drizzle-orm';
 import { generateIdFromEntropySize } from 'lucia';
+import { sseFanoutReviewToProjectWatchers } from '$lib/server/sseFanout';
+import { ssePublishRole, ssePublishUser } from '$lib/server/sseHub';
 import { broadcastToProject, broadcastToRole, broadcastToUser } from '../../../socket-setup.mjs';
 import { getDb } from './db';
 import {
@@ -37,6 +39,7 @@ export type SubmissionProgress = (typeof SUBMISSION_PROGRESS_VALUES)[number];
 export function notifyProjectReviewUpdate(projectId: string) {
 	console.info('[realtime-server] notifyProjectReviewUpdate', projectId.slice(0, 8) + '…');
 	broadcastToProject(projectId, 'review:invalidate', { projectId });
+	void sseFanoutReviewToProjectWatchers(projectId);
 	void dispatchWorkspaceInvalidateForProject(projectId);
 }
 
@@ -60,6 +63,7 @@ async function dispatchWorkspaceInvalidateForProject(projectId: string) {
 	);
 	for (const id of ids) {
 		broadcastToUser(id, 'workspace:invalidate', { projectId });
+		ssePublishUser(id, 'workspace', { projectId });
 	}
 }
 
@@ -67,6 +71,7 @@ async function dispatchWorkspaceInvalidateForProject(projectId: string) {
 export function notifyAdminDashboard() {
 	console.info('[realtime-server] notifyAdminDashboard');
 	broadcastToRole('admin', 'workspace:invalidate', {});
+	ssePublishRole('admin', 'workspace', {});
 }
 
 async function testingMandatoryAllAccepted(projectId: string): Promise<boolean> {

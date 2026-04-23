@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-node';
 import { dirname, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,8 +18,11 @@ const config = {
 		}
 	},
 	kit: {
-		// Node serverless on Vercel: Turso client, @node-rs/argon2, Lucia need this (not Edge).
-		adapter: adapter({ runtime: 'nodejs20.x' })
+		// Fly.io / any Node host: `server.js` + Socket.IO share one process with the SvelteKit handler.
+		adapter: adapter({
+			out: 'build',
+			precompress: false
+		})
 	}
 };
 

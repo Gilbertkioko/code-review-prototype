@@ -5,6 +5,7 @@
 	import { APP_STATE_STORAGE_KEY, getApp } from '$lib/appState.svelte';
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
 	import { realtimeClientLog } from '$lib/realtimeDebug';
+	import { connectRealtimeSse, isRealtimeSseEnabled } from '$lib/realtimeSse';
 	import { cancelDebouncedInvalidateAll, scheduleDebouncedInvalidateAll } from '$lib/realtimeInvalidate';
 	import { getRealtimeSocket } from '$lib/socket';
 	import './layout.css';
@@ -20,6 +21,12 @@
 
 	const app = getApp();
 
+	/**
+	 * Production (e.g. Vercel): long interval so `/socket.io` 404 + poll fallback does not wipe the UI every few seconds.
+	 * Dev: shorter interval when the socket is down.
+	 */
+	const POLL_FALLBACK_MS = import.meta.env.PROD ? 45_000 : 5_000;
+
 	/** Socket.IO when a Node server attaches it (dev / `node server.js`); polling fallback if the socket never connects. */
 	let pollTimer: ReturnType<typeof setInterval> | undefined;
 	let bootTimer: ReturnType<typeof setTimeout> | undefined;
@@ -27,8 +34,6 @@
 	$effect(() => {
 		if (!browser) return;
 		const socket = getRealtimeSocket();
-		if (!socket) return;
-
 		const sessionUser = data.sessionUser;
 
 		const bumpImmediate = (source: string) => {
@@ -39,15 +44,15 @@
 			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
 			scheduleDebouncedInvalidateAll(source);
 		};
-		const onWorkspace = () => bumpFromSocket('socket:workspace:invalidate');
-		const onReview = () => bumpFromSocket('socket:review:invalidate');
-		socket.on('workspace:invalidate', onWorkspace);
-		socket.on('review:invalidate', onReview);
+		const bumpFromSse = (source: string) => {
+			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
+			scheduleDebouncedInvalidateAll(source);
+		};
 
 		const armPoll = () => {
 			if (pollTimer) return;
-			realtimeClientLog('polling fallback ON (every 5s) — socket not usable');
-			pollTimer = setInterval(() => bumpImmediate('poll:fallback'), 5000);
+			realtimeClientLog('polling fallback ON — socket not usable', { everyMs: POLL_FALLBACK_MS });
+			pollTimer = setInterval(() => bumpImmediate('poll:fallback'), POLL_FALLBACK_MS);
 		};
 		const disarmPoll = () => {
 			if (pollTimer) {
@@ -56,6 +61,33 @@
 				realtimeClientLog('polling fallback OFF');
 			}
 		};
+
+		/**
+		 * No Socket.IO client (env disabled or torn down after failures): HTTP poll + optional in-process SSE
+		 * (`/api/realtime`). SSE only delivers when POST and GET share one Node process (dev / `node server.js`); on
+		 * multi-instance hosts use poll or add Redis-backed fan-out later.
+		 */
+		if (!socket) {
+			if (!sessionUser) {
+				return () => {
+					cancelDebouncedInvalidateAll();
+					disarmPoll();
+				};
+			}
+			armPoll();
+			const sseConn =
+				isRealtimeSseEnabled() ? connectRealtimeSse((src) => bumpFromSse(src)) : null;
+			return () => {
+				sseConn?.close();
+				cancelDebouncedInvalidateAll();
+				disarmPoll();
+			};
+		}
+
+		const onWorkspace = () => bumpFromSocket('socket:workspace:invalidate');
+		const onReview = () => bumpFromSocket('socket:review:invalidate');
+		socket.on('workspace:invalidate', onWorkspace);
+		socket.on('review:invalidate', onReview);
 
 		/** Rooms are per socket connection — must run on every `connect` (reload, reconnect, wake from sleep). */
 		const syncSessionRooms = () => {
