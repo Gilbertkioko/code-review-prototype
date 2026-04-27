@@ -1,14 +1,17 @@
 import { CATEGORIES } from '$lib/constants';
 import type { CategorySession, TestingItem } from '$lib/types';
 import { parseCodeReviewSavePayload } from './code-review-payload';
-import { and, asc, desc, eq, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, ne, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import { generateIdFromEntropySize } from 'lucia';
 import { getDb } from './db';
 import {
 	codeReviewObservationProgress,
 	codeReviewThreadMessage,
 	project,
+	projectComment,
 	reviewPair,
+	session,
 	testingItemProgress,
 	testingThreadMessage,
 	user,
@@ -58,7 +61,8 @@ export async function ensureActiveProjectForSubmitter(submitterId: string) {
 		codeReviewJson: null as string | null,
 		submissionProgress: 'awaiting_repo' as const,
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		adminSidebarHiddenAt: null as number | null
 	};
 	await db.insert(project).values(row);
 	return row;
@@ -172,6 +176,149 @@ export async function listProjectsWithSubmittersForAdmin() {
 		.from(project)
 		.innerJoin(user, eq(project.submitterId, user.id))
 		.orderBy(desc(project.createdAt));
+}
+
+/** Last path segment of a Gitea URL, humanized (e.g. `mobile-dev` → "mobile dev"). */
+function repoPathTailAsLabel(url: string | null): string | null {
+	if (!url?.trim()) return null;
+	try {
+		const u = new URL(url.trim());
+		const parts = u.pathname.replace(/\/+/g, '/').replace(/\/$/, '').split('/').filter(Boolean);
+		const last = parts[parts.length - 1];
+		if (!last) return null;
+		let base = decodeURIComponent(last);
+		if (base.endsWith('.git')) base = base.slice(0, -4);
+		const t = base.replace(/[-_]+/g, ' ').trim();
+		return t.length > 0 ? t : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Short label for admin lists (sidebar, cards): prefers repo name from Gitea URL, else first non-empty
+ * line of submitter instructions when it differs from the default template.
+ */
+export function adminProjectDisplayTitle(giteaUrl: string | null, instructions: string): string {
+	const fromRepo = repoPathTailAsLabel(giteaUrl);
+	if (fromRepo) {
+		const t = fromRepo.replace(/\s+/g, ' ');
+		const capped = t.length ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+		return capped.length > 64 ? `${capped.slice(0, 61)}…` : capped;
+	}
+	const raw = instructions.trim();
+	if (raw && raw !== DEFAULT_PROJECT_INSTRUCTIONS) {
+		const line = raw.split(/\r?\n/).find((l) => l.trim()) ?? raw;
+		const t = line.trim().replace(/\s+/g, ' ');
+		if (t.length > 56) return `${t.slice(0, 53)}…`;
+		return t;
+	}
+	return 'Code review batch';
+}
+
+/** One row per project for admin sidebar: submitter + optional paired reviewers (single query). */
+export type AdminSidebarProject = {
+	id: string;
+	status: string;
+	giteaUrl: string | null;
+	createdAt: number;
+	/** Human-facing batch name (repo slug or instructions). */
+	displayTitle: string;
+	submitterUsername: string;
+	submitterEmail: string;
+	reviewerAUsername: string | null;
+	reviewerBUsername: string | null;
+};
+
+export async function listAdminSidebarProjects(): Promise<AdminSidebarProject[]> {
+	const db = getDb();
+	const submitter = alias(user, 'submitter');
+	const reviewerAUser = alias(user, 'reviewer_a');
+	const reviewerBUser = alias(user, 'reviewer_b');
+
+	const rows = await db
+		.select({
+			id: project.id,
+			status: project.status,
+			giteaUrl: project.giteaUrl,
+			instructions: project.instructions,
+			createdAt: project.createdAt,
+			submitterUsername: submitter.username,
+			submitterEmail: submitter.email,
+			reviewerAUsername: reviewerAUser.username,
+			reviewerBUsername: reviewerBUser.username
+		})
+		.from(project)
+		.innerJoin(submitter, eq(project.submitterId, submitter.id))
+		.leftJoin(reviewPair, eq(reviewPair.projectId, project.id))
+		.leftJoin(reviewerAUser, eq(reviewPair.reviewerAId, reviewerAUser.id))
+		.leftJoin(reviewerBUser, eq(reviewPair.reviewerBId, reviewerBUser.id))
+		.where(isNull(project.adminSidebarHiddenAt))
+		.orderBy(desc(project.createdAt));
+
+	return rows.map((r) => ({
+		id: r.id,
+		status: r.status,
+		giteaUrl: r.giteaUrl,
+		createdAt: r.createdAt,
+		displayTitle: adminProjectDisplayTitle(r.giteaUrl, r.instructions),
+		submitterUsername: r.submitterUsername,
+		submitterEmail: r.submitterEmail,
+		reviewerAUsername: r.reviewerAUsername ?? null,
+		reviewerBUsername: r.reviewerBUsername ?? null
+	}));
+}
+
+/** Projects hidden from the admin sidebar (restore from Settings). */
+export async function listAdminHiddenSidebarProjects(): Promise<AdminSidebarProject[]> {
+	const db = getDb();
+	const submitter = alias(user, 'submitter');
+	const reviewerAUser = alias(user, 'reviewer_a');
+	const reviewerBUser = alias(user, 'reviewer_b');
+
+	const rows = await db
+		.select({
+			id: project.id,
+			status: project.status,
+			giteaUrl: project.giteaUrl,
+			instructions: project.instructions,
+			createdAt: project.createdAt,
+			submitterUsername: submitter.username,
+			submitterEmail: submitter.email,
+			reviewerAUsername: reviewerAUser.username,
+			reviewerBUsername: reviewerBUser.username
+		})
+		.from(project)
+		.innerJoin(submitter, eq(project.submitterId, submitter.id))
+		.leftJoin(reviewPair, eq(reviewPair.projectId, project.id))
+		.leftJoin(reviewerAUser, eq(reviewPair.reviewerAId, reviewerAUser.id))
+		.leftJoin(reviewerBUser, eq(reviewPair.reviewerBId, reviewerBUser.id))
+		.where(isNotNull(project.adminSidebarHiddenAt))
+		.orderBy(desc(project.createdAt));
+
+	return rows.map((r) => ({
+		id: r.id,
+		status: r.status,
+		giteaUrl: r.giteaUrl,
+		createdAt: r.createdAt,
+		displayTitle: adminProjectDisplayTitle(r.giteaUrl, r.instructions),
+		submitterUsername: r.submitterUsername,
+		submitterEmail: r.submitterEmail,
+		reviewerAUsername: r.reviewerAUsername ?? null,
+		reviewerBUsername: r.reviewerBUsername ?? null
+	}));
+}
+
+export async function setProjectAdminSidebarHidden(projectId: string, hidden: boolean) {
+	const db = getDb();
+	const now = Date.now();
+	await db
+		.update(project)
+		.set({
+			adminSidebarHiddenAt: hidden ? now : null,
+			updatedAt: now
+		})
+		.where(eq(project.id, projectId));
 }
 
 export async function assignReviewPair(params: {
@@ -406,6 +553,159 @@ export function categoryAssigneeMapFromPair(pair: ReviewPairRow): Record<string,
 	return map;
 }
 
+export type AdminPairedProjectBrief = {
+	id: string;
+	displayTitle: string;
+	status: string;
+	reviewerAId: string;
+	reviewerBId: string;
+	reviewerAUsername: string;
+	reviewerBUsername: string;
+};
+
+/** Projects with an assigned pair that are not completed (swap reviewers here). */
+export async function listPairedProjectsForAdminReassign(): Promise<AdminPairedProjectBrief[]> {
+	const db = getDb();
+	const ra = alias(user, 'ra');
+	const rb = alias(user, 'rb');
+	const rows = await db
+		.select({
+			id: project.id,
+			giteaUrl: project.giteaUrl,
+			instructions: project.instructions,
+			status: project.status,
+			reviewerAId: reviewPair.reviewerAId,
+			reviewerBId: reviewPair.reviewerBId,
+			reviewerAUsername: ra.username,
+			reviewerBUsername: rb.username
+		})
+		.from(reviewPair)
+		.innerJoin(project, eq(reviewPair.projectId, project.id))
+		.innerJoin(ra, eq(reviewPair.reviewerAId, ra.id))
+		.innerJoin(rb, eq(reviewPair.reviewerBId, rb.id))
+		.where(ne(project.status, 'completed'))
+		.orderBy(desc(project.createdAt));
+
+	return rows.map((r) => ({
+		id: r.id,
+		displayTitle: adminProjectDisplayTitle(r.giteaUrl, r.instructions),
+		status: r.status,
+		reviewerAId: r.reviewerAId,
+		reviewerBId: r.reviewerBId,
+		reviewerAUsername: r.reviewerAUsername,
+		reviewerBUsername: r.reviewerBUsername
+	}));
+}
+
+export async function adminSetUserRole(
+	targetId: string,
+	newRole: 'submitter' | 'reviewer'
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const db = getDb();
+	const u = await userPublicRow(targetId);
+	if (!u) return { ok: false, error: 'User not found' };
+	if (u.role === 'admin') return { ok: false, error: 'Admin accounts cannot be edited here' };
+	if (u.role === newRole) return { ok: true };
+
+	if (newRole === 'reviewer') {
+		const owned = await db
+			.select({ id: project.id })
+			.from(project)
+			.where(and(eq(project.submitterId, targetId), ne(project.status, 'completed')));
+		if (owned.length > 0) {
+			return {
+				ok: false,
+				error: 'This user still owns an active project as submitter — complete or transfer projects first'
+			};
+		}
+	}
+
+	if (newRole === 'submitter') {
+		const pairs = await db
+			.select({ projectId: reviewPair.projectId })
+			.from(reviewPair)
+			.where(or(eq(reviewPair.reviewerAId, targetId), eq(reviewPair.reviewerBId, targetId)));
+		for (const row of pairs) {
+			const p = await getProjectById(row.projectId);
+			if (p && p.status !== 'completed') {
+				return {
+					ok: false,
+					error: 'Remove this reviewer from their active pair first (reassign slot or complete the project)'
+				};
+			}
+		}
+	}
+
+	await db.update(user).set({ role: newRole }).where(eq(user.id, targetId));
+	return { ok: true };
+}
+
+export async function adminDeleteUser(
+	targetId: string,
+	actorId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	if (targetId === actorId) return { ok: false, error: 'You cannot delete your own account' };
+	const db = getDb();
+	const u = await userPublicRow(targetId);
+	if (!u) return { ok: false, error: 'User not found' };
+	if (u.role === 'admin') return { ok: false, error: 'Admin accounts cannot be deleted' };
+
+	const owned = await db
+		.select({ id: project.id })
+		.from(project)
+		.where(eq(project.submitterId, targetId));
+	if (owned.length > 0) {
+		return { ok: false, error: 'User is still a submitter on one or more projects' };
+	}
+
+	const pairRows = await db
+		.select({ id: reviewPair.id })
+		.from(reviewPair)
+		.where(or(eq(reviewPair.reviewerAId, targetId), eq(reviewPair.reviewerBId, targetId)));
+	if (pairRows.length > 0) {
+		return { ok: false, error: 'User is still assigned as a reviewer on a pair — reassign slots first' };
+	}
+
+	const comments = await db
+		.select({ id: projectComment.id })
+		.from(projectComment)
+		.where(eq(projectComment.authorId, targetId))
+		.limit(1);
+	if (comments.length > 0) {
+		return { ok: false, error: 'User has project comments in the database — revoke not supported yet' };
+	}
+
+	await db.delete(session).where(eq(session.userId, targetId));
+	await db.delete(user).where(eq(user.id, targetId));
+	return { ok: true };
+}
+
+export async function adminReassignReviewerSlot(params: {
+	projectId: string;
+	slot: 'A' | 'B';
+	newReviewerId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+	const { projectId, slot, newReviewerId } = params;
+	const db = getDb();
+	const pair = await getPairForProject(projectId);
+	if (!pair) return { ok: false, error: 'No reviewer pair on this project' };
+	const p = await getProjectById(projectId);
+	if (!p || p.status === 'completed') return { ok: false, error: 'Project not eligible' };
+
+	const nu = await userPublicRow(newReviewerId);
+	if (!nu || nu.role !== 'reviewer') return { ok: false, error: 'Replacement must be a reviewer account' };
+
+	const otherId = slot === 'A' ? pair.reviewerBId : pair.reviewerAId;
+	if (newReviewerId === otherId) return { ok: false, error: 'Pick someone different from the other slot' };
+
+	if (slot === 'A') {
+		await db.update(reviewPair).set({ reviewerAId: newReviewerId }).where(eq(reviewPair.projectId, projectId));
+	} else {
+		await db.update(reviewPair).set({ reviewerBId: newReviewerId }).where(eq(reviewPair.projectId, projectId));
+	}
+	return { ok: true };
+}
+
 export async function startNextProjectBatch(submitterId: string) {
 	const db = getDb();
 	const open = await db
@@ -428,7 +728,8 @@ export async function startNextProjectBatch(submitterId: string) {
 		codeReviewJson: null,
 		submissionProgress: 'awaiting_repo',
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		adminSidebarHiddenAt: null
 	});
 	return { ok: true as const, projectId: id };
 }

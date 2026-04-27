@@ -19,7 +19,10 @@ function row(
 	};
 }
 
-/** First ceil(n/2) mandatory rows → you (Jane id), rest → Joe (stable order in array). */
+/**
+ * Splits mandatory rows between reviewers in array order: first half → Jane, remainder → Joe.
+ * With 10 mandatory rows you get 5 + 5.
+ */
 export function withMandatoryOwners(items: TestingItem[]): TestingItem[] {
 	const mandatoryCount = items.filter((t) => t.section === 'mandatory').length;
 	const janeCount = Math.ceil(mandatoryCount / 2);
@@ -32,7 +35,7 @@ export function withMandatoryOwners(items: TestingItem[]): TestingItem[] {
 	});
 }
 
-/** Full Mobile Messenger testing checklist (mandatory + extra). */
+/** Full Mobile Messenger testing checklist: 5 mandatory rows per reviewer (10 total) + extra. */
 export function createFullTestingItems(): TestingItem[] {
 	const raw = [
 		row('m1', 'mandatory', 'Repository contains complete source code and configuration files.'),
@@ -52,39 +55,6 @@ export function createFullTestingItems(): TestingItem[] {
 			'mandatory',
 			'Registration is not allowed if email or username is already in use. User receives proper visual feedback.'
 		),
-		row(
-			'm6',
-			'mandatory',
-			'Application checks password strength: ≥8 characters, lowercase, uppercase, digit, special character. Registration blocked if weak; user gets visual feedback.'
-		),
-		row('m7', 'mandatory', 'User receives verification email after creating an account.'),
-		row('m8', 'mandatory', 'User needs email and password to log in to the messenger.'),
-		row('m9', 'mandatory', 'User can reset their account password.'),
-		row(
-			'm10',
-			'mandatory',
-			'Authentication persistence unless explicit logout or session expiry — verify by closing and reopening the app; user stays logged in.'
-		),
-		row(
-			'm11',
-			'mandatory',
-			'User has a profile page with at least username, profile picture, and About Me sections.'
-		),
-		row('m12', 'mandatory', 'Default profile picture on first login; About Me empty initially.'),
-		row(
-			'm13',
-			'mandatory',
-			'Profile picture upload supports at least JPEG and PNG (5MB limit per spec).'
-		),
-		row('m14', 'mandatory', 'User can edit any data in their profile.'),
-		row('m15', 'mandatory', 'User can search for contacts by username or by email.'),
-		row('m16', 'mandatory', 'User can send chat invitations to other users.'),
-		row(
-			'm17',
-			'mandatory',
-			'User can accept or decline invitations; application has a pending invitation section.'
-		),
-		row('m18', 'mandatory', 'Chat list sorted by time of last message received or sent.'),
 		row('m19', 'mandatory', 'User can archive and unarchive chats.'),
 		row('m20', 'mandatory', 'Users can send text messages to each other.'),
 		row('m21', 'mandatory', 'Users can send images to each other.'),
@@ -93,21 +63,6 @@ export function createFullTestingItems(): TestingItem[] {
 			'm23',
 			'mandatory',
 			'Typing indicators show when either user is composing a message in real time.'
-		),
-		row('m24', 'mandatory', 'Each message shows sent and delivered state.'),
-		row('m25', 'mandatory', 'On failed delivery, user receives clear visual feedback.'),
-		row('m26', 'mandatory', 'Each message shows whether it has been read by the recipient.'),
-		row('m27', 'mandatory', 'User can edit and delete their own messages in the chat.'),
-		row('m28', 'mandatory', 'Data persists after restarting the application.'),
-		row(
-			'm29',
-			'mandatory',
-			'Messages, media, profile information, and chat list contents are encrypted before reaching the database.'
-		),
-		row(
-			'm30',
-			'mandatory',
-			'On errors/exceptions, messenger returns to last stable state when possible; user receives visual feedback about the error.'
 		),
 		row(
 			'e1',

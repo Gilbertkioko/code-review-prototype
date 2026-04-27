@@ -1,169 +1,115 @@
 <script lang="ts">
-	import PrototypePageShell from '$lib/features/shell/PrototypePageShell.svelte';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
+
+	const started = $derived(
+		data.project.createdAt ? new Date(data.project.createdAt).toLocaleString() : '—'
+	);
+	const sidebarHidden = $derived(Boolean(data.project.adminSidebarHiddenAt));
 </script>
 
 <svelte:head>
-	<title>Project {data.project.id.slice(0, 8)}… — Admin</title>
+	<title>{data.projectDisplayTitle} — Overview — Admin</title>
 </svelte:head>
 
-<PrototypePageShell variant="admin">
-	<div class="mx-auto max-w-3xl space-y-8">
-		<header class="rounded-xl border border-kood-accent/30 bg-kood-surface/80 p-5 lg:p-6">
-			<p class="text-xs text-kood-muted">
-				<a href="/admin" class="text-kood-accent underline">← Admin</a>
-			</p>
-			<h1 class="mt-4 font-mono text-xl font-semibold tracking-tight text-kood-text">Project audit</h1>
-			<p class="mt-2 text-sm text-kood-muted">
-				Status: <span class="text-kood-accent">{data.project.status}</span>
-			</p>
-			{#if data.project.giteaUrl}
-				<p class="mt-2 break-all text-sm">
-					<a class="text-kood-accent underline" href={data.project.giteaUrl} target="_blank" rel="noreferrer"
-						>{data.project.giteaUrl}</a
-					>
-				</p>
-			{/if}
+<div class="mx-auto max-w-4xl space-y-8 pb-12">
+	<p class="text-xs text-kood-muted">
+		<a href="/admin" class="text-kood-text underline decoration-kood-border underline-offset-2 hover:decoration-kood-text/40"
+			>← Admin</a
+		>
+	</p>
 
-			{#if data.pair}
-				<p class="mt-4 text-sm text-kood-muted">
-					Pair reviewers (IDs): <span class="font-mono text-xs text-kood-text">{data.pair.reviewerAId}</span> ·
-					<span class="font-mono text-xs text-kood-text">{data.pair.reviewerBId}</span>
-				</p>
-			{/if}
-		</header>
+	<header class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
+		<p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-kood-muted/90">Project</p>
+		<h1 class="mt-1 text-xl font-semibold tracking-tight text-kood-text md:text-2xl">
+			{data.projectDisplayTitle}
+		</h1>
+		<p class="mt-2 text-sm text-kood-muted">
+			<span class="font-semibold text-kood-muted/80">Submitter</span>
+			<span class="ml-1 font-mono text-kood-text/95">{data.submitterName}</span>
+			<span class="mx-2 text-kood-border">·</span>
+			Created <span class="text-kood-text/90">{started}</span>
+			<span class="mx-2 text-kood-border">·</span>
+			Status <span class="font-medium text-kood-text">{data.project.status}</span>
+		</p>
+		{#if data.project.giteaUrl}
+			<p class="mt-3 break-all text-sm">
+				<a
+					class="text-kood-text underline decoration-kood-border hover:decoration-kood-text/40"
+					href={data.project.giteaUrl}
+					target="_blank"
+					rel="noreferrer">{data.project.giteaUrl}</a
+				>
+			</p>
+		{/if}
 
-		{#if data.testingItemProgress.length > 0}
-			<section class="rounded-xl border border-kood-border bg-kood-surface p-4 md:p-5">
-				<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Testing · verdict progress (SQL)</h2>
+		<div
+			class="mt-5 grid gap-3 rounded-xl border border-kood-border/60 bg-kood-bg/30 p-4 text-sm sm:grid-cols-3"
+		>
+			<div>
+				<p class="text-[10px] font-semibold uppercase tracking-wide text-kood-muted">Submitter</p>
+				<p class="mt-1 font-medium text-kood-text">{data.submitterName}</p>
+			</div>
+			<div>
+				<p class="text-[10px] font-semibold uppercase tracking-wide text-kood-muted">Reviewer A (slot 1)</p>
+				<p class="mt-1 font-medium text-kood-text">{data.reviewerAName}</p>
+			</div>
+			<div>
+				<p class="text-[10px] font-semibold uppercase tracking-wide text-kood-muted">Reviewer B (slot 2)</p>
+				<p class="mt-1 font-medium text-kood-text">{data.reviewerBName}</p>
+			</div>
+		</div>
+
+		<div class="mt-6 border-t border-kood-border/50 pt-4">
+			<p class="text-xs font-medium text-kood-muted">Sidebar</p>
+			{#if sidebarHidden}
 				<p class="mt-1 text-xs text-kood-muted">
-					Latest accept/decline/pending per checklist row (same ids as the prototype).
+					This batch is hidden from the admin Projects list.
+					<a class="text-kood-text underline" href="/admin/settings">Settings</a> lists all hidden batches.
 				</p>
-				<div class="mt-3 overflow-x-auto rounded-lg border border-kood-border bg-kood-bg/40">
-					<table class="w-full min-w-[640px] border-collapse text-left text-xs">
-						<thead>
-							<tr class="border-b border-kood-border bg-kood-surface-raised/50 text-kood-muted">
-								<th class="px-3 py-2">Item</th>
-								<th class="px-3 py-2">Section</th>
-								<th class="px-3 py-2">Owner</th>
-								<th class="px-3 py-2">Reviewer 1</th>
-								<th class="px-3 py-2">Reviewer 2</th>
-								<th class="px-3 py-2">Round</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each data.testingItemProgress as row (row.itemId)}
-								<tr class="border-b border-kood-border/50">
-									<td class="px-3 py-2 font-mono text-[11px]">{row.itemId}</td>
-									<td class="px-3 py-2">{row.section}</td>
-									<td class="px-3 py-2">{row.mandatoryOwner ?? '—'}</td>
-									<td class="px-3 py-2">{row.janeVerdict}</td>
-									<td class="px-3 py-2">{row.joeVerdict}</td>
-									<td class="px-3 py-2">{row.testingRound}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</section>
-		{/if}
-
-		{#if data.codeReviewObservationProgress.length > 0}
-			<section class="rounded-xl border border-kood-border bg-kood-surface p-4 md:p-5">
-				<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Code review · verdict progress (SQL)</h2>
-				<p class="mt-1 text-xs text-kood-muted">Per observation row — matches the sprint board.</p>
-				<div class="mt-3 overflow-x-auto rounded-lg border border-kood-border bg-kood-bg/40">
-					<table class="w-full min-w-[560px] border-collapse text-left text-xs">
-						<thead>
-							<tr class="border-b border-kood-border bg-kood-surface-raised/50 text-kood-muted">
-								<th class="px-3 py-2">Category</th>
-								<th class="px-3 py-2">Observation</th>
-								<th class="px-3 py-2">Reviewer 1</th>
-								<th class="px-3 py-2">Reviewer 2</th>
-								<th class="px-3 py-2">Round</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each data.codeReviewObservationProgress as row (`${row.categoryId}-${row.observationId}`)}
-								<tr class="border-b border-kood-border/50">
-									<td class="px-3 py-2">{row.categoryId}</td>
-									<td class="px-3 py-2 font-mono text-[11px]">{row.observationId}</td>
-									<td class="px-3 py-2">{row.janeVerdict}</td>
-									<td class="px-3 py-2">{row.joeVerdict}</td>
-									<td class="px-3 py-2">{row.codeReviewRound}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</section>
-		{/if}
-
-		<section class="rounded-xl border border-kood-border bg-kood-surface p-4 md:p-5">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Testing · conversation threads</h2>
-			<p class="mt-1 text-xs text-kood-muted">
-				Reviewer ↔ submitter messages on each checklist row (from SQL after sync, otherwise from saved JSON).
-			</p>
-			<ul class="mt-3 space-y-4 text-sm">
-				{#each data.testingThreads as t, ti (ti)}
-					<li class="rounded-lg border border-kood-border bg-kood-bg/30 p-3">
-						<p class="text-xs text-kood-muted">{t.context}</p>
-						<p class="mt-2 text-xs text-kood-muted">
-							<span class="font-semibold text-kood-text">{t.authorLabel}</span>
-							{#if t.round != null}
-								· round {t.round}
-							{/if}
-							· {t.at ? new Date(t.at).toLocaleString() : '—'}
-						</p>
-						<p class="mt-2 whitespace-pre-wrap text-kood-text/90">{t.text}</p>
-					</li>
-				{/each}
-			</ul>
-			{#if data.testingThreads.length === 0}
-				<p class="mt-2 text-sm text-kood-muted">No testing comments saved yet.</p>
+				<form
+					method="post"
+					action="?/toggleSidebarHidden"
+					class="mt-2"
+					use:enhance={() => async ({ update }) => {
+						await update();
+						await invalidateAll();
+					}}
+				>
+					<input type="hidden" name="projectId" value={data.project.id} />
+					<input type="hidden" name="hidden" value="0" />
+					<button
+						type="submit"
+						class="rounded-md border border-kood-border bg-kood-surface px-3 py-1.5 text-xs font-medium text-kood-text hover:bg-kood-surface-raised"
+					>
+						Show in sidebar again
+					</button>
+				</form>
+			{:else}
+				<p class="mt-1 text-xs text-kood-muted">
+					Remove this batch from the sidebar when the list is crowded. You can bring it back anytime from Settings.
+				</p>
+				<form
+					method="post"
+					action="?/toggleSidebarHidden"
+					class="mt-2"
+					use:enhance={() => async ({ update }) => {
+						await update();
+						await invalidateAll();
+					}}
+				>
+					<input type="hidden" name="projectId" value={data.project.id} />
+					<input type="hidden" name="hidden" value="1" />
+					<button
+						type="submit"
+						class="rounded-md border border-kood-border px-3 py-1.5 text-xs text-kood-muted hover:bg-kood-bg/40 hover:text-kood-text"
+					>
+						Hide from sidebar
+					</button>
+				</form>
 			{/if}
-		</section>
-
-		<section class="rounded-xl border border-kood-border bg-kood-surface p-4 md:p-5">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Code review · conversation threads</h2>
-			<p class="mt-1 text-xs text-kood-muted">
-				Messages on each observation row (from SQL after sync, otherwise from saved JSON).
-			</p>
-			<ul class="mt-3 space-y-4 text-sm">
-				{#each data.codeReviewThreads as t, ci (ci)}
-					<li class="rounded-lg border border-kood-border bg-kood-bg/30 p-3">
-						<p class="text-xs text-kood-muted">{t.context}</p>
-						<p class="mt-2 text-xs text-kood-muted">
-							<span class="font-semibold text-kood-text">{t.authorLabel}</span>
-							{#if t.round != null}
-								· round {t.round}
-							{/if}
-							· {t.at ? new Date(t.at).toLocaleString() : '—'}
-						</p>
-						<p class="mt-2 whitespace-pre-wrap text-kood-text/90">{t.text}</p>
-					</li>
-				{/each}
-			</ul>
-			{#if data.codeReviewThreads.length === 0}
-				<p class="mt-2 text-sm text-kood-muted">No code review comments saved yet.</p>
-			{/if}
-		</section>
-
-		{#if data.project.testingJson || data.project.codeReviewJson}
-			<section class="rounded-xl border border-kood-border bg-kood-surface p-4 md:p-5">
-				<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Raw JSON (optional)</h2>
-				{#if data.project.testingJson}
-					<p class="mt-2 text-xs text-kood-muted">testing_json</p>
-					<pre
-						class="mt-1 max-h-48 overflow-auto rounded-lg border border-kood-border bg-kood-bg p-3 text-xs text-kood-muted">{data.project.testingJson}</pre>
-				{/if}
-				{#if data.project.codeReviewJson}
-					<p class="mt-3 text-xs text-kood-muted">code_review_json</p>
-					<pre
-						class="mt-1 max-h-48 overflow-auto rounded-lg border border-kood-border bg-kood-bg p-3 text-xs text-kood-muted">{data.project.codeReviewJson}</pre>
-				{/if}
-			</section>
-		{/if}
-	</div>
-</PrototypePageShell>
+		</div>
+	</header>
+</div>

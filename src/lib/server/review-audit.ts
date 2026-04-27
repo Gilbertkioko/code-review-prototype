@@ -1,13 +1,43 @@
 import { CATEGORIES } from '$lib/constants';
 import type { CategorySession, TestingItem } from '$lib/types';
 
+export type AuditThreadPersona = 'sandra' | 'jane' | 'joe';
+
 export type AuditThreadEntry = {
 	context: string;
 	authorLabel: string;
+	authorPersona: AuditThreadPersona | null;
 	round?: number;
 	at: string;
 	text: string;
 };
+
+export type AuditThreadGroup = {
+	context: string;
+	entries: AuditThreadEntry[];
+};
+
+export function normalizeAuditPersona(author: string): AuditThreadPersona | null {
+	if (author === 'sandra' || author === 'jane' || author === 'joe') return author;
+	return null;
+}
+
+/** Group flat audit rows by `context` (one UI block per checklist row / observation). */
+export function groupAuditThreads(entries: AuditThreadEntry[]): AuditThreadGroup[] {
+	const map = new Map<string, AuditThreadEntry[]>();
+	for (const e of entries) {
+		const list = map.get(e.context) ?? [];
+		list.push(e);
+		map.set(e.context, list);
+	}
+	const out: AuditThreadGroup[] = [];
+	for (const [context, items] of map) {
+		items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+		out.push({ context, entries: items });
+	}
+	out.sort((a, b) => a.context.localeCompare(b.context));
+	return out;
+}
 
 export function personaDisplayName(author: string): string {
 	if (author === 'sandra') return 'Submitter';
@@ -35,9 +65,11 @@ export function auditTestingThreads(testingJson: string | null): AuditThreadEntr
 			const snippet = truncate(typeof item.text === 'string' ? item.text : item.id, 80);
 			for (const c of item.comments) {
 				if (!c || typeof c.text !== 'string') continue;
+				const ap = normalizeAuditPersona(String(c.author));
 				out.push({
 					context: `${prefix} · ${item.id} — ${snippet}`,
 					authorLabel: personaDisplayName(String(c.author)),
+					authorPersona: ap,
 					round: typeof c.round === 'number' ? c.round : undefined,
 					at: typeof c.at === 'string' ? c.at : '',
 					text: c.text
@@ -70,9 +102,11 @@ export function auditCodeReviewThreads(codeReviewJson: string | null): AuditThre
 				const obsSnippet = truncate(o.text, 72);
 				for (const c of row.comments) {
 					if (!c || typeof c.text !== 'string') continue;
+					const ap = normalizeAuditPersona(String(c.author));
 					out.push({
 						context: `Code review · ${cat.title} · ${o.id} — ${obsSnippet}`,
 						authorLabel: personaDisplayName(String(c.author)),
+						authorPersona: ap,
 						round: typeof c.round === 'number' ? c.round : undefined,
 						at: typeof c.at === 'string' ? c.at : '',
 						text: c.text

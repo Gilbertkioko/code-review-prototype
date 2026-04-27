@@ -97,3 +97,11 @@ export interface ReviewerRatingSet {
 	codeComments: { score: number | null; comment: string; submitted: boolean };
 	crossReviewer: { score: number | null; comment: string; submitted: boolean };
 }
+
+/** Chat-style standup takeaway line (persisted in workspace JSON). */
+export interface StandupTakeawayMessage {
+	id: string;
+	author: Role;
+	text: string;
+	at: string;
+}

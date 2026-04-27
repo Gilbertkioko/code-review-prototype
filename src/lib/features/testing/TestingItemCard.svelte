@@ -14,6 +14,8 @@
 		formatShortTimestamp,
 		formatVerdictHistoryLine,
 		reviewerDisplayName,
+		testingCommentThreadChrome,
+		testingCommentThreadSlotLabel,
 		verdictChipClass,
 		verdictLabel
 	} from './testingUtils';
@@ -184,14 +186,26 @@
 				{#if item.comments.length === 0}
 					<p class="mt-1.5 text-xs text-kood-muted/80">No notes yet.</p>
 				{:else}
-					<ul class="mt-1.5 max-h-36 space-y-1.5 overflow-y-auto text-xs">
+					<ul class="mt-2 max-h-44 space-y-2 overflow-y-auto text-xs" aria-label="Testing discussion thread">
 						{#each item.comments as c (c.id)}
-							<li class="rounded-md border border-kood-border bg-kood-bg px-2.5 py-1.5">
-								<div class="flex flex-wrap justify-between gap-1 text-[10px] text-kood-muted">
-									<span class="font-medium text-kood-text/80">{commentAuthorLabel(c.author)}</span>
-									<span>R{c.round} · {formatShortTimestamp(c.at)}</span>
+							{@const chrome = testingCommentThreadChrome(c.author)}
+							<li
+								class="rounded-r-lg rounded-bl-sm px-2.5 py-2 {chrome.rowClass}"
+								aria-label="{testingCommentThreadSlotLabel(c.author)}, {commentAuthorLabel(c.author)}"
+							>
+								<div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+									<div class="flex min-w-0 flex-wrap items-center gap-1.5">
+										<span
+											class="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide {chrome.rolePill}"
+											>{testingCommentThreadSlotLabel(c.author)}</span
+										>
+										<span class="truncate font-medium text-kood-text/90">{commentAuthorLabel(c.author)}</span>
+									</div>
+									<span class="shrink-0 text-[10px] text-kood-muted">R{c.round} · {formatShortTimestamp(c.at)}</span>
 								</div>
-								<p class="mt-0.5 whitespace-pre-wrap text-kood-text/90">{c.text}</p>
+								<p class="mt-1.5 whitespace-pre-wrap pl-0.5 text-[13px] leading-relaxed text-kood-text/92">
+									{c.text}
+								</p>
 							</li>
 						{/each}
 					</ul>

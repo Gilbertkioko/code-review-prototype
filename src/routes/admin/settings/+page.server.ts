@@ -1,18 +1,21 @@
 import { notifyAdminDashboard } from '$lib/server/review-live';
-import { setProjectAdminSidebarHidden } from '$lib/server/review-workspace';
+import { listAdminHiddenSidebarProjects, setProjectAdminSidebarHidden } from '$lib/server/review-workspace';
 import { fail } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async () => {
+	const hiddenProjects = await listAdminHiddenSidebarProjects();
+	return { hiddenProjects };
+};
 
 export const actions: Actions = {
-	toggleSidebarHidden: async (event) => {
+	restoreProjectSidebar: async (event) => {
 		const admin = event.locals.user;
 		if (!admin || admin.role !== 'admin') return fail(403);
 		const fd = await event.request.formData();
 		const projectId = fd.get('projectId');
-		const hiddenRaw = fd.get('hidden');
 		if (typeof projectId !== 'string') return fail(400, { message: 'Missing project' });
-		const hidden = hiddenRaw === '1' || hiddenRaw === 'true';
-		await setProjectAdminSidebarHidden(projectId, hidden);
+		await setProjectAdminSidebarHidden(projectId, false);
 		notifyAdminDashboard();
 		return { success: true };
 	}

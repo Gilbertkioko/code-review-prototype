@@ -16,3 +16,23 @@ export async function postFormReviewAction(
 	if (res.ok) await invalidateAll();
 	return { ok: res.ok };
 }
+
+/** Persist testing + code review JSON (includes standup + 360° feedback blocks) for a known project. */
+export async function saveReviewStateWithPayloads(
+	projectId: string,
+	testingPayload: string,
+	codeReviewPayload: string
+): Promise<boolean> {
+	if (!browser) return false;
+	const fd = new FormData();
+	fd.set('projectId', projectId);
+	fd.set('testingPayload', testingPayload);
+	fd.set('codeReviewPayload', codeReviewPayload);
+	try {
+		const res = await fetch('?/saveReviewState', { method: 'POST', body: fd, credentials: 'include' });
+		if (res.ok) await invalidateAll();
+		return res.ok;
+	} catch {
+		return false;
+	}
+}

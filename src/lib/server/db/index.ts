@@ -174,6 +174,14 @@ export function initDatabase(): Promise<void> {
 					`[db] Database has no tables yet. Run \`npm run db:push\` for this DATABASE_URL (local file or Turso), then restart.${hint}`
 				);
 			}
+
+			/** Idempotent: code expects this column; drizzle-kit push may not have run on older DBs. */
+			const colRows = await db.all<{ name: string }>(
+				sql`SELECT name FROM pragma_table_info('project') WHERE name = 'admin_sidebar_hidden_at' LIMIT 1`
+			);
+			if (!colRows.length) {
+				await db.run(sql`ALTER TABLE project ADD COLUMN admin_sidebar_hidden_at integer`);
+			}
 		})();
 	}
 	return initOnce;

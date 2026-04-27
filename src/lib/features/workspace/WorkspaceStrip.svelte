@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { getApp } from '$lib/appState.svelte';
+	import ReviewSyncToolbar from './ReviewSyncToolbar.svelte';
 
 	type Proj = { id: string; status: string; giteaUrl: string | null };
 	type RP = { projectId: string };
@@ -21,6 +22,7 @@
 				pair: RP | null;
 				categoryMap?: CatMap;
 				reviewRoom: ReviewRoom | null;
+				canMarkComplete: boolean;
 		  }
 		| {
 				kind: 'reviewer';
@@ -30,6 +32,7 @@
 				categoryMap?: CatMap;
 				persona?: 'sandra' | 'jane' | 'joe' | null;
 				reviewRoom: ReviewRoom | null;
+				canMarkComplete?: boolean;
 		  }
 		| { kind: 'other'; viewerId: string; role: string };
 
@@ -86,13 +89,13 @@
 				<strong class="text-kood-text/90">{submitter.reviewRoom?.reviewerAUsername ?? 'Reviewer A'}</strong>
 				&amp;
 				<strong class="text-kood-text/90">{submitter.reviewRoom?.reviewerBUsername ?? 'Reviewer B'}</strong>
-				— use <strong class="text-kood-text/90">Server sync</strong> below to save Testing and Code review progress for
-				everyone on this batch.
+				— use <strong class="text-kood-text/90">Save</strong> below to push Testing and Code review to the server for
+				this batch.
 			</p>
 		{:else if submitter.project.status === 'repo_submitted'}
 			<p class="mt-3 text-xs text-kood-muted">
 				<strong class="text-kood-text/90">Awaiting reviewers.</strong> An admin will assign two reviewers to this repo.
-				Then use Server sync to share saved threads from the prototype Testing and Code review steps.
+				Then use <strong class="text-kood-text/90">Save</strong> below once you have threads to share.
 			</p>
 		{:else if submitter.project.status === 'review_active'}
 			<p class="mt-2 text-xs text-kood-muted">Review is active — continue the sprint in the main workspace and project room.</p>
@@ -107,6 +110,7 @@
 				</button>
 			</form>
 		{/if}
+		<ReviewSyncToolbar project={submitter.project} canMarkComplete={submitter.canMarkComplete} />
 	</section>
 {:else if reviewer}
 	<section class="mb-6 rounded-xl border border-kood-border bg-kood-surface/80 p-4 text-sm">
@@ -123,9 +127,10 @@
 				</p>
 			{/if}
 			<p class="mt-3 text-xs text-kood-muted">
-				Use <strong class="text-kood-text/90">Server sync</strong> below to save Testing and Code review state with the
+				Use <strong class="text-kood-text/90">Save</strong> below to push Testing and Code review to the server for the
 				submitter and your peer.
 			</p>
+			<ReviewSyncToolbar project={reviewer.project} canMarkComplete={reviewer.canMarkComplete ?? false} />
 		{:else}
 			<p class="mt-2 text-xs text-kood-muted">You are not assigned to a project yet. An admin will pair you with a partner.</p>
 		{/if}

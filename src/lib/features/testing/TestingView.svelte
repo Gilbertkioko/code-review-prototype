@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { TestingItem } from '$lib/types';
 	import {
 		allMandatoryDoubleAccepted,
 		getApp,
@@ -7,13 +6,10 @@
 		goToCodeReview,
 		mandatoryItems,
 		mandatoryOwnedResolvedCount,
-		mandatoryOwnerAccepted,
 		mandatoryProgressForReviewer,
 		sandraStartNewTestingRound
 	} from '$lib/appState.svelte';
 	import TestingItemCard from './TestingItemCard.svelte';
-
-	const MANDATORY_PAGE_SIZE = 5;
 
 	type MandatoryFilter = 'jane_owned' | 'joe_owned';
 
@@ -22,8 +18,6 @@
 	const isSandra = $derived(app.role === 'sandra');
 
 	let expanded = $state<Record<string, boolean>>({});
-
-	let mandatoryPage = $state(0);
 
 	let mandatoryFilter = $state<MandatoryFilter>(
 		app.role === 'joe' ? 'joe_owned' : 'jane_owned'
@@ -89,27 +83,6 @@
 		joeProg.owned === 0 ? 0 : (joeProg.declined / joeProg.owned) * 100
 	);
 
-	const mandatoryPageCount = $derived(
-		Math.max(1, Math.ceil(mandatoryFiltered.length / MANDATORY_PAGE_SIZE))
-	);
-	const mandatoryPageSafe = $derived(Math.min(mandatoryPage, mandatoryPageCount - 1));
-	const mandatorySlice = $derived(
-		mandatoryFiltered.slice(
-			mandatoryPageSafe * MANDATORY_PAGE_SIZE,
-			mandatoryPageSafe * MANDATORY_PAGE_SIZE + MANDATORY_PAGE_SIZE
-		)
-	);
-
-	function pageChunkFullyAccepted(items: TestingItem[], pageIdx: number): boolean {
-		const start = pageIdx * MANDATORY_PAGE_SIZE;
-		const chunk = items.slice(start, start + MANDATORY_PAGE_SIZE);
-		return chunk.length > 0 && chunk.every(mandatoryOwnerAccepted);
-	}
-
-	const mandatoryPageDone = $derived(
-		Array.from({ length: mandatoryPageCount }, (_, i) => pageChunkFullyAccepted(mandatoryFiltered, i))
-	);
-
 	function isOpen(id: string) {
 		return expanded[id] === true;
 	}
@@ -128,13 +101,8 @@
 		expanded = {};
 	}
 
-	function setMandatoryPage(n: number) {
-		mandatoryPage = Math.max(0, Math.min(n, mandatoryPageCount - 1));
-	}
-
 	function setFilter(f: MandatoryFilter) {
 		mandatoryFilter = f;
-		mandatoryPage = 0;
 	}
 </script>
 
@@ -235,56 +203,28 @@
 		</div>
 
 		<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
-			Pagination only changes which cards you see. The bars above always reflect <strong class="text-kood-text/80"
-				>every</strong
-			> mandatory row in each bucket — you can’t finish the phase until each owned row is accepted.
+			The bars above reflect <strong class="text-kood-text/80">every</strong> mandatory row in each bucket — you can’t
+			finish the phase until each owned row is accepted.
 		</p>
 	</section>
 
-	<div
-		class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-kood-border bg-kood-surface px-3 py-2"
-	>
-		<p class="text-xs text-kood-muted">
-			Chevron to expand is on the <strong class="text-kood-text/80">right</strong> of each row.
-		</p>
-		<div class="flex flex-wrap gap-2">
-			<button
-				type="button"
-				class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
-				onclick={expandAll}>Expand all</button
-			>
-			<button
-				type="button"
-				class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
-				onclick={collapseAll}>Collapse all</button
-			>
-		</div>
+	<div class="flex flex-wrap justify-end gap-2">
+		<button
+			type="button"
+			class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
+			onclick={expandAll}>Expand all</button
+		>
+		<button
+			type="button"
+			class="rounded-md border border-kood-border px-2.5 py-1 text-xs text-kood-text/90 hover:bg-kood-surface-raised"
+			onclick={collapseAll}>Collapse all</button
+		>
 	</div>
 
 	{#if isSandra}
-		<div
-			class="rounded-lg border border-kood-border bg-kood-surface px-4 py-3 text-sm text-kood-text/90"
-			role="status"
-		>
-			<strong class="text-kood-text">Submitter:</strong> read-only verdicts; expand a row for the full thread. Use
-			<strong class="text-kood-text">Start new testing round</strong> after fixes.
-		</div>
-	{:else if isReviewer}
-		<div
-			class="rounded-lg border border-kood-accent/25 bg-kood-accent/5 px-4 py-3 text-sm text-kood-text/90"
-			role="status"
-		>
-			{#if app.role === 'jane'}
-				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows marked for you. Use the other tab (<strong
-					class="text-kood-text/90">{tabJoeBucketLabel}</strong>) to see {oName}’s scope (read-only verdicts; you can
-				still comment).
-			{:else}
-				<strong class="text-kood-text">You:</strong> Accept/Decline only on rows in <strong class="text-kood-text/90"
-					>{tabJoeBucketLabel}</strong
-				>. Use <strong class="text-kood-text/90">{tabJaneBucketLabel}</strong> to read {jName}’s scope (read-only
-				verdicts; you can still comment).
-			{/if}
-		</div>
+		<p class="text-xs text-kood-muted" role="status">
+			Verdicts are read-only for you — expand a row for the thread. Use <strong class="text-kood-text/90">Start new testing round</strong> after fixes.
+		</p>
 	{/if}
 
 	<section>
@@ -320,53 +260,8 @@
 			>
 		</div>
 
-		{#if mandatoryPageCount > 1}
-			<div
-				class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-kood-border bg-kood-bg/40 px-3 py-2"
-			>
-				<div class="flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						class="rounded-md border border-kood-border px-2 py-1 text-xs text-kood-text hover:bg-kood-surface-raised disabled:opacity-40"
-						disabled={mandatoryPageSafe <= 0}
-						onclick={() => setMandatoryPage(mandatoryPageSafe - 1)}>Previous page</button
-					>
-					<button
-						type="button"
-						class="rounded-md border border-kood-border px-2 py-1 text-xs text-kood-text hover:bg-kood-surface-raised disabled:opacity-40"
-						disabled={mandatoryPageSafe >= mandatoryPageCount - 1}
-						onclick={() => setMandatoryPage(mandatoryPageSafe + 1)}>Next page</button
-					>
-					<span class="text-xs text-kood-muted">
-						Page <strong class="text-kood-text/90">{mandatoryPageSafe + 1}</strong> / {mandatoryPageCount}
-						· showing
-						<strong class="text-kood-text/90">{mandatoryFiltered.length === 0 ? 0 : mandatoryPageSafe * MANDATORY_PAGE_SIZE + 1}</strong>–{Math.min(
-							(mandatoryPageSafe + 1) * MANDATORY_PAGE_SIZE,
-							mandatoryFiltered.length
-						)}
-						of {mandatoryFiltered.length} in this view
-					</span>
-				</div>
-				<div class="flex flex-wrap items-center gap-1.5" role="list" aria-label="Page status (owner accepted)">
-					{#each mandatoryPageDone as done, i (i)}
-						<button
-							type="button"
-							class="h-2.5 w-2.5 rounded-sm border transition-colors {done
-								? 'border-kood-accent bg-kood-accent/80'
-								: 'border-kood-border bg-kood-surface'} {i === mandatoryPageSafe
-								? 'ring-2 ring-kood-accent/50 ring-offset-1 ring-offset-kood-bg'
-								: ''}"
-							title={done ? `Page ${i + 1}: all rows accepted by owner` : `Page ${i + 1}: still open`}
-							aria-label={`Go to page ${i + 1}`}
-							onclick={() => setMandatoryPage(i)}
-						></button>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
 		<div class="space-y-2">
-			{#each mandatorySlice as item (item.id)}
+			{#each mandatoryFiltered as item (item.id)}
 				<TestingItemCard item={item} open={isOpen(item.id)} onToggle={() => toggle(item.id)} />
 			{/each}
 		</div>
@@ -400,7 +295,7 @@
 		{#if !allMandatoryDoubleAccepted()}
 			<p class="text-xs text-amber-400/90">
 				Every mandatory row must be <strong class="text-amber-200">Accepted by its owner</strong> ({jName} or {oName}).
-				Use tabs and pages so nothing is missed.
+				Use both tabs so nothing is missed.
 			</p>
 		{/if}
 	</div>

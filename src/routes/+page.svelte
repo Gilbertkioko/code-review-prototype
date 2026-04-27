@@ -15,7 +15,6 @@
 		syncLiveReviewWorkspaceFromServer
 	} from '$lib/appState.svelte';
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
-	import ReviewProgressSave from '$lib/features/workspace/ReviewProgressSave.svelte';
 	import WorkspaceStrip from '$lib/features/workspace/WorkspaceStrip.svelte';
 	import ProjectBriefing from '$lib/features/briefing/ProjectBriefing.svelte';
 	import ReviewerWaitForAssignment from '$lib/features/briefing/ReviewerWaitForAssignment.svelte';
@@ -42,17 +41,6 @@
 	const reviewerAwaitingAssignment = $derived(
 		data.workspace.kind === 'reviewer' && !data.workspace.pair
 	);
-
-	const reviewSaveContext = $derived.by(() => {
-		const w = data.workspace;
-		if (w.kind === 'submitter') {
-			return { project: w.project, canMarkComplete: w.canMarkComplete };
-		}
-		if (w.kind === 'reviewer' && w.project) {
-			return { project: w.project, canMarkComplete: w.canMarkComplete };
-		}
-		return null;
-	});
 
 	let syncedRoomKey = $state('');
 
@@ -158,12 +146,6 @@
 	{#if !reviewerAwaitingAssignment}
 		<WorkspaceStrip workspace={data.workspace} />
 	{/if}
-	{#if reviewSaveContext}
-		<ReviewProgressSave
-			project={reviewSaveContext.project}
-			canMarkComplete={reviewSaveContext.canMarkComplete}
-		/>
-	{/if}
 	{#if reviewerAwaitingAssignment}
 		<ReviewerWaitForAssignment />
 	{:else if app.phase === 'briefing'}
@@ -183,11 +165,23 @@
 	{:else if app.phase === 'code_review'}
 		<CodeReviewView />
 	{:else if app.phase === 'standup'}
-		<StandupView />
+		<StandupView
+			project={data.workspace.kind === 'submitter'
+				? data.workspace.project
+				: data.workspace.kind === 'reviewer'
+					? (data.workspace.project ?? null)
+					: null}
+		/>
 	{:else if app.phase === 'accept_project'}
 		<AcceptView />
 	{:else if app.phase === 'feedback_360'}
-		<Feedback360View />
+		<Feedback360View
+			project={data.workspace.kind === 'submitter'
+				? data.workspace.project
+				: data.workspace.kind === 'reviewer'
+					? (data.workspace.project ?? null)
+					: null}
+		/>
 	{/if}
 </PrototypePageShell>
 
