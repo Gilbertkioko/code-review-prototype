@@ -3,19 +3,11 @@
 	import CodeReview7Day from './CodeReview7Day.svelte';
 	import CodeReviewSprintBoard from './CodeReviewSprintBoard.svelte';
 
-	const jName = $derived(getPersonaDisplayLabel('jane'));
-	const oName = $derived(getPersonaDisplayLabel('joe'));
 	const sandraName = $derived(getPersonaDisplayLabel('sandra'));
 </script>
 
 <div class="space-y-6">
 	<header class="space-y-3">
-		<p class="text-xs font-semibold uppercase tracking-wide text-kood-accent">Code review</p>
-		<h2 class="text-2xl font-semibold tracking-tight text-kood-text">The heart of quality feedback</h2>
-		<p class="max-w-3xl text-sm leading-relaxed text-kood-muted">
-			Code reviews help you spot different ways to solve problems, sharpen reflection, and raise coding quality.
-			It is not about right or wrong — it is about leaning into a deep technical discussion.
-		</p>
 		<div class="flex flex-wrap gap-2 pt-1">
 			<span class="rounded-full bg-kood-accent/15 px-2.5 py-0.5 text-xs font-semibold text-kood-accent">+10</span>
 			<span class="rounded-full bg-kood-accent/15 px-2.5 py-0.5 text-xs font-semibold text-kood-accent">+10</span>
@@ -31,12 +23,6 @@
 			<li>Keep standards high while collaborating with peers.</li>
 		</ul>
 	</section>
-
-	<div class="rounded-lg border border-kood-border bg-kood-bg/50 px-4 py-3 text-xs text-kood-muted">
-		<strong class="text-kood-text/90">Async sprint:</strong> The board below matches the Testing flow (Accept/Decline,
-		threads, {jName} vs {oName} tabs). Scheduling the live call, the on-call discussion order, and takeaways live in
-		<strong class="text-kood-text/90">Standup (post-sprint)</strong> once every listed observation is accepted.
-	</div>
 
 	<CodeReviewSprintBoard />
 

@@ -34,7 +34,7 @@ export function withMandatoryOwners(items: TestingItem[]): TestingItem[] {
 	});
 }
 
-/** Trimmed checklist: 3 mandatory rows only. */
+/** Trimmed checklist: 3 mandatory rows per reviewer. */
 export function createFullTestingItems(): TestingItem[] {
 	const raw = [
 		row('m1', 'mandatory', 'Repository contains complete source code and configuration files.'),
@@ -47,7 +47,14 @@ export function createFullTestingItems(): TestingItem[] {
 			'm3',
 			'mandatory',
 			'Application runs successfully on a virtual or physical device with chosen platform (Android/iOS).'
-		)
+		),
+		row('m4', 'mandatory', 'User can create an account with email, username and password.'),
+		row(
+			'm5',
+			'mandatory',
+			'Registration is not allowed if email or username is already in use. User receives proper visual feedback.'
+		),
+		row('m19', 'mandatory', 'User can archive and unarchive chats.')
 	];
 	return withMandatoryOwners(raw);
 }
