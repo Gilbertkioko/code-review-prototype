@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { CATEGORIES } from '$lib/constants';
+	import { academyModalOpen, academyModalCategory } from '$lib/stores';
 	import type { CategoryDef, CodeReviewListEntry } from '$lib/types';
 	import {
-		academyUrl,
 		allCategoriesComplete,
 		categoryAssignee,
 		codeReviewObservationsList,
@@ -334,11 +334,13 @@
 							</strong>
 						</p>
 					</div>
-					<a
+					<button
 						class="shrink-0 text-sm font-medium text-kood-accent underline-offset-2 hover:underline"
-						href={academyUrl(currentGroup.category.academyHint)}
-						target="_blank"
-						rel="noreferrer">Open in review academy</a
+						onclick={() => {
+							academyModalCategory.set(currentGroup.category.id);
+							academyModalOpen.set(true);
+						}}
+						>Open in review academy</button
 					>
 				</div>
 				<div class="space-y-2 p-3 sm:p-4">

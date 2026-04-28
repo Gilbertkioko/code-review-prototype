@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { ACADEMY_BASE, CATEGORIES } from '$lib/constants';
+	import { CATEGORIES } from '$lib/constants';
+	import { academyModalOpen, academyModalCategory } from '$lib/stores';
 	import {
-		academyUrl,
 		acceptReviewerAssignment,
 		categoryAssignee,
 		getApp,
@@ -61,22 +61,26 @@
 						<li class="rounded-lg border border-kood-border bg-kood-bg/50 px-3 py-3 text-sm">
 							<p class="font-medium text-kood-text">{c.title}</p>
 							<p class="mt-1 text-xs leading-relaxed text-kood-muted">{c.assignmentBlurb}</p>
-							<a
+							<button
 								class="mt-2 inline-flex text-xs font-medium text-kood-accent underline-offset-2 hover:underline"
-								href={academyUrl(c.academyHint)}
-								target="_blank"
-								rel="noreferrer">Open in Review Academy →</a
+								onclick={() => {
+									academyModalCategory.set(c.id);
+									academyModalOpen.set(true);
+								}}
+								>Open in Review Academy →</button
 							>
 						</li>
 					{/each}
 				</ul>
 				<p class="mt-3 text-xs text-kood-muted">
 					Need the whole school, not just one topic?
-					<a
+					<button
 						class="font-medium text-kood-accent underline-offset-2 hover:underline"
-						href={ACADEMY_BASE}
-						target="_blank"
-						rel="noreferrer">Review Academy home</a
+						onclick={() => {
+							academyModalCategory.set('security');
+							academyModalOpen.set(true);
+						}}
+						>Review Academy home</button
 					>
 				</p>
 			</section>

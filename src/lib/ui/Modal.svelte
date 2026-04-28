@@ -2,11 +2,13 @@
 	let {
 		open = $bindable(false),
 		title,
+		maxWidth = 'max-w-md',
 		children,
 		footer
 	}: {
 		open?: boolean;
 		title: string;
+		maxWidth?: string;
 		children?: import('svelte').Snippet;
 		footer?: import('svelte').Snippet;
 	} = $props();
@@ -19,7 +21,7 @@
 		onclick={(e) => e.target === e.currentTarget && (open = false)}
 	>
 		<div
-			class="max-w-md rounded-xl border border-kood-border bg-kood-surface-raised p-6 shadow-xl"
+			class="{maxWidth} w-full rounded-xl border border-kood-border bg-kood-surface-raised p-6 shadow-xl"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="modal-title"

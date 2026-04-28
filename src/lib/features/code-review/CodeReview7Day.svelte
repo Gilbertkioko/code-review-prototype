@@ -1,4 +1,7 @@
 <script lang="ts">
+	import AcademyModal from '$lib/ui/AcademyModal.svelte';
+	import { academyModalOpen } from '$lib/stores';
+
 	const days = [
 		{ day: 1, title: 'Kickoff', desc: "Agree on scope, requirements, and what 'done' means.", phase: 'Prepare' },
 		{ day: 2, title: 'First pass', desc: 'Reviewer checks core flows and notes risks early.', phase: 'Prepare' },
@@ -8,6 +11,7 @@
 		{ day: 6, title: 'Verify', desc: 'Re-test critical flows. Confirm all issues resolved.', phase: 'Close', highlight: true },
 		{ day: 7, title: 'Close out', desc: 'Summarise: what was tested, what improved, what remains.', phase: 'Close', highlight: true }
 	];
+
 </script>
 
 <div class="rounded-2xl border border-kood-border bg-kood-surface p-6">
@@ -48,7 +52,7 @@
 		<button
 			type="button"
 			class="rounded-lg border border-kood-border bg-kood-surface-raised px-5 py-2.5 text-sm font-medium text-kood-text hover:bg-kood-surface"
-			onclick={() => window.open('https://kood-review-academy-prototype-sxyr.vercel.app/', '_blank')}
+			onclick={() => academyModalOpen.set(true)}
 			>Review categories again (academy)</button
 		>
 	</div>

@@ -37,11 +37,13 @@ export const CATEGORIES: CategoryDef[] = [
 			},
 			{
 				id: 's4',
-				text: 'Sensitive data protection — No hardcoded secrets or sensitive values in logs; store and handle credentials safely.'
+				text: 'Sensitive data protection — No hardcoded secrets or sensitive values in logs; store and handle credentials safely.',
+				submitterText: 'Your code protects sensitive data by avoiding hardcoded secrets and safely handling credentials.'
 			},
 			{
 				id: 's5',
-				text: 'Dependency vulnerabilities — Third-party libraries are maintained and not knowingly risky or unnecessary.'
+				text: 'Dependency vulnerabilities — Third-party libraries are maintained and not knowingly risky or unnecessary.',
+				submitterText: 'Your project uses maintained third-party libraries without known vulnerabilities.'
 			}
 		]
 	},
@@ -67,11 +69,13 @@ export const CATEGORIES: CategoryDef[] = [
 			},
 			{
 				id: 'cr4',
-				text: 'Data integrity — Updates and transactions keep related data consistent without partial or inconsistent states.'
+				text: 'Data integrity — Updates and transactions keep related data consistent without partial or inconsistent states.',
+				submitterText: 'Your code maintains data integrity through consistent updates and transactions.'
 			},
 			{
 				id: 'cr5',
-				text: 'Logical correctness — Conditions, operators, algorithms, and loops match the intended behaviour.'
+				text: 'Logical correctness — Conditions, operators, algorithms, and loops match the intended behaviour.',
+				submitterText: 'Your code\'s logic, including conditions, operators, algorithms, and loops, is correct.'
 			}
 		]
 	},
@@ -97,11 +101,13 @@ export const CATEGORIES: CategoryDef[] = [
 			},
 			{
 				id: 'p4',
-				text: 'I/O efficiency — Reuse or batch APIs, files, and network calls instead of repeating identical work in tight loops.'
+				text: 'I/O efficiency — Reuse or batch APIs, files, and network calls instead of repeating identical work in tight loops.',
+				submitterText: 'Your I/O operations are efficient, reusing and batching where possible.'
 			},
 			{
 				id: 'p5',
-				text: 'Caching usage — Do not recompute or refetch the same expensive result when a small cache or reuse is clearly better.'
+				text: 'Caching usage — Do not recompute or refetch the same expensive result when a small cache or reuse is clearly better.',
+				submitterText: 'Your code uses caching effectively to avoid recomputing expensive results.'
 			}
 		]
 	},
@@ -127,11 +133,13 @@ export const CATEGORIES: CategoryDef[] = [
 			},
 			{
 				id: 'st4',
-				text: 'Layer boundaries — Logic stays in the layer it belongs to, without leaking DB or transport details upward.'
+				text: 'Layer boundaries — Logic stays in the layer it belongs to, without leaking DB or transport details upward.',
+				submitterText: 'Your code respects layer boundaries, preventing leakage of lower-level details.'
 			},
 			{
 				id: 'st5',
-				text: 'Code cohesion — Each module keeps closely related responsibilities instead of unrelated grab-bags.'
+				text: 'Code cohesion — Each module keeps closely related responsibilities instead of unrelated grab-bags.',
+				submitterText: 'Your modules have high cohesion, focusing on related responsibilities.'
 			}
 		]
 	}
