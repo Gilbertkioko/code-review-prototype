@@ -43,6 +43,7 @@
 	);
 
 	let syncedRoomKey = $state('');
+let hadReviewerProject = $state(false);
 
 	$effect(() => {
 		if (!browser) return;
@@ -135,6 +136,18 @@
 				/* ignore corrupt snapshot */
 			}
 		}
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
+		if (w.kind !== 'reviewer') return;
+		const hasProject = Boolean(w.pair && w.project);
+		if (hadReviewerProject && !hasProject) {
+			alert('You were replaced on the review project by an administrator.');
+			window.location.href = '/';
+		}
+		hadReviewerProject = hasProject;
 	});
 </script>
 

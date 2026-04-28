@@ -5,5 +5,13 @@
 			You are not assigned to a project yet. An administrator will pair you with a submitter’s repository when a
 			batch is ready. Check back here after you have been assigned.
 		</p>
+		<div class="mt-4">
+			<a
+				href="/"
+				class="inline-flex rounded-md border border-kood-border bg-kood-bg px-3 py-1.5 text-xs text-kood-text hover:bg-kood-surface-raised"
+			>
+				Go back to project overview
+			</a>
+		</div>
 	</div>
 </div>

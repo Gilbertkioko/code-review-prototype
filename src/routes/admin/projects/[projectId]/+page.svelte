@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
-	let { data } = $props();
+let { data, form } = $props();
 
 	const started = $derived(
 		data.project.createdAt ? new Date(data.project.createdAt).toLocaleString() : '—'
@@ -43,6 +43,9 @@
 					rel="noreferrer">{data.project.giteaUrl}</a
 				>
 			</p>
+		{/if}
+		{#if form?.message}
+			<p class="mt-3 rounded-lg border border-kood-border bg-kood-bg/40 px-3 py-2 text-xs text-kood-text">{form.message}</p>
 		{/if}
 
 		<div
@@ -111,5 +114,81 @@
 				</form>
 			{/if}
 		</div>
+
+		{#if data.pair && data.project.status !== 'completed'}
+			<div class="mt-6 border-t border-kood-border/50 pt-4">
+				<p class="text-xs font-medium text-kood-muted">Reviewer reassignment</p>
+				<div class="mt-3 grid gap-4 md:grid-cols-2">
+					<div>
+						<p class="text-[10px] font-medium uppercase tracking-wide text-kood-muted">Slot A</p>
+						<p class="mt-1 text-xs text-kood-text/90">{data.reviewerAName}</p>
+						<form
+							method="post"
+							action="?/reassignReviewer"
+							class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
+							use:enhance={() => async ({ update }) => {
+								await update();
+								await invalidateAll();
+							}}
+						>
+							<input type="hidden" name="projectId" value={data.project.id} />
+							<input type="hidden" name="slot" value="A" />
+							<select
+								name="newReviewerId"
+								required
+								class="min-w-0 flex-1 rounded-md border border-kood-border bg-kood-bg px-2 py-2 text-xs text-kood-text"
+							>
+								<option value="" disabled selected>Reviewer...</option>
+								{#each data.reviewers as r (r.id)}
+									{#if r.id !== data.pair.reviewerBId}
+										<option value={r.id}>{r.username}</option>
+									{/if}
+								{/each}
+							</select>
+							<button
+								type="submit"
+								class="shrink-0 rounded-md border border-kood-border bg-kood-surface px-3 py-2 text-[11px] font-medium text-kood-text hover:bg-kood-surface-raised"
+							>
+								Set A
+							</button>
+						</form>
+					</div>
+					<div>
+						<p class="text-[10px] font-medium uppercase tracking-wide text-kood-muted">Slot B</p>
+						<p class="mt-1 text-xs text-kood-text/90">{data.reviewerBName}</p>
+						<form
+							method="post"
+							action="?/reassignReviewer"
+							class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
+							use:enhance={() => async ({ update }) => {
+								await update();
+								await invalidateAll();
+							}}
+						>
+							<input type="hidden" name="projectId" value={data.project.id} />
+							<input type="hidden" name="slot" value="B" />
+							<select
+								name="newReviewerId"
+								required
+								class="min-w-0 flex-1 rounded-md border border-kood-border bg-kood-bg px-2 py-2 text-xs text-kood-text"
+							>
+								<option value="" disabled selected>Reviewer...</option>
+								{#each data.reviewers as r (r.id)}
+									{#if r.id !== data.pair.reviewerAId}
+										<option value={r.id}>{r.username}</option>
+									{/if}
+								{/each}
+							</select>
+							<button
+								type="submit"
+								class="shrink-0 rounded-md border border-kood-border bg-kood-surface px-3 py-2 text-[11px] font-medium text-kood-text hover:bg-kood-surface-raised"
+							>
+								Set B
+							</button>
+						</form>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</header>
 </div>
