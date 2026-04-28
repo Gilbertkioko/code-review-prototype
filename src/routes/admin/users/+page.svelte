@@ -98,20 +98,36 @@
 							</td>
 							<td class="px-3 py-3">
 								{#if u.role !== 'admin'}
-									<form method="post" action="?/deleteUser" use:enhance={refreshAfterSubmit}>
-										<input type="hidden" name="userId" value={u.id} />
-										<button
-											type="submit"
-											class="text-xs text-kood-muted underline decoration-kood-border decoration-dotted hover:text-kood-text"
-											onclick={(e) => {
-												if (!confirm(`Remove account “${u.username}”? This cannot be undone.`)) {
-													e.preventDefault();
-												}
-											}}
-										>
-											Remove
-										</button>
-									</form>
+									<div class="flex flex-wrap items-center gap-3">
+										<form method="post" action="?/disableUser" use:enhance={refreshAfterSubmit}>
+											<input type="hidden" name="userId" value={u.id} />
+											<button
+												type="submit"
+												class="text-xs text-amber-300 underline decoration-kood-border decoration-dotted hover:text-amber-200"
+												onclick={(e) => {
+													if (!confirm(`Disable account “${u.username}”? They will be signed out and blocked from login.`)) {
+														e.preventDefault();
+													}
+												}}
+											>
+												Disable
+											</button>
+										</form>
+										<form method="post" action="?/deleteUser" use:enhance={refreshAfterSubmit}>
+											<input type="hidden" name="userId" value={u.id} />
+											<button
+												type="submit"
+												class="text-xs text-kood-muted underline decoration-kood-border decoration-dotted hover:text-kood-text"
+												onclick={(e) => {
+													if (!confirm(`Remove account “${u.username}”? This cannot be undone.`)) {
+														e.preventDefault();
+													}
+												}}
+											>
+												Remove
+											</button>
+										</form>
+									</div>
 								{:else}
 									<span class="text-[11px] text-kood-muted/60">—</span>
 								{/if}

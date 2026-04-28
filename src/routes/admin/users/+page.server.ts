@@ -1,6 +1,7 @@
 import { notifyAdminDashboard } from '$lib/server/review-live';
 import {
 	adminDisableUser,
+	adminDisableUser,
 	adminDeleteUser,
 	adminSetUserRole,
 	listUsersForAdmin
@@ -39,7 +40,6 @@ export const actions: Actions = {
 		if (!res.ok) return fail(400, { message: res.error });
 		notifyAdminDashboard();
 		return { success: true };
-<<<<<<< HEAD
 	},
 	disableUser: async (event) => {
 		const admin = event.locals.user;
@@ -51,7 +51,5 @@ export const actions: Actions = {
 		if (!res.ok) return fail(400, { message: res.error });
 		notifyAdminDashboard();
 		return { success: true, message: 'Account disabled. User has been signed out and can no longer log in.' };
-=======
->>>>>>> 604bf39 (tightened the reassignment flow)
 	}
 };
