@@ -74,6 +74,19 @@ export function notifyAdminDashboard() {
 	ssePublishRole('admin', 'workspace', {});
 }
 
+/** Notify a reviewer they were removed from a project pair and should leave review UI. */
+export function notifyReviewerReassigned(params: {
+	reviewerUserId: string;
+	projectId: string;
+	reason: string;
+}) {
+	const { reviewerUserId, projectId, reason } = params;
+	console.info('[realtime-server] notifyReviewerReassigned', reviewerUserId.slice(0, 8) + '…', projectId.slice(0, 8) + '…');
+	broadcastToUser(reviewerUserId, 'reviewer:reassigned', { projectId, reason });
+	broadcastToUser(reviewerUserId, 'workspace:invalidate', { projectId });
+	ssePublishUser(reviewerUserId, 'workspace', { projectId });
+}
+
 async function testingMandatoryAllAccepted(projectId: string): Promise<boolean> {
 	const template = withMandatoryOwners(createFullTestingItems());
 	const mandatory = template.filter((t) => t.section === 'mandatory');
