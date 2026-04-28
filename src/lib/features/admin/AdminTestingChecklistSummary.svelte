@@ -1,14 +1,18 @@
 <script lang="ts">
 	import type { AdminTestingSummary } from '$lib/server/admin-testing-summary';
+	import type { AuditThreadGroup } from '$lib/server/review-audit';
+	import AdminThreadConversationFeed from '$lib/features/admin/AdminThreadConversationFeed.svelte';
 
 	let {
 		summary,
 		reviewerAColumn,
-		reviewerBColumn
+		reviewerBColumn,
+		threadGroups = []
 	}: {
 		summary: AdminTestingSummary;
 		reviewerAColumn: string;
 		reviewerBColumn: string;
+		threadGroups?: AuditThreadGroup[];
 	} = $props();
 
 	function outcomeLabel(o: 'pass' | 'fail' | 'pending'): string {
@@ -30,21 +34,24 @@
 	}
 
 	const mandatoryRows = $derived(summary.rows.filter((r) => r.section === 'mandatory'));
-	const extraRows = $derived(summary.rows.filter((r) => r.section === 'extra'));
+
+	function threadGroupsFor(itemId: string): AuditThreadGroup[] {
+		return threadGroups.filter((g) => g.context.includes(` ${itemId} —`) || g.context.includes(` ${itemId} `));
+	}
 </script>
 
-<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
+<section class="w-full rounded-xl border border-kood-border bg-kood-surface p-4 md:p-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
 			<h2 class="text-sm font-semibold text-kood-text">Checklist outcomes</h2>
 			<p class="mt-1 text-xs text-kood-muted">
 				Verdicts as saved for this project (round {summary.testingRound}). Mandatory rows need an accept from the
-				assigned reviewer; extra rows need both reviewers to accept.
+				assigned reviewer.
 			</p>
 		</div>
 	</div>
 
-	<div class="mt-4 grid gap-3 sm:grid-cols-2">
+	<div class="mt-4">
 		<div class="rounded-lg border border-kood-border/80 bg-kood-bg/30 px-3 py-3">
 			<p class="text-[11px] font-semibold uppercase tracking-wide text-kood-muted">Mandatory</p>
 			<p class="mt-1 text-sm text-kood-text">
@@ -58,20 +65,6 @@
 				<span class="text-kood-muted"> pending</span>
 			</p>
 			<p class="mt-1 text-[11px] text-kood-muted/90">of {summary.mandatory.total} checks</p>
-		</div>
-		<div class="rounded-lg border border-kood-border/80 bg-kood-bg/30 px-3 py-3">
-			<p class="text-[11px] font-semibold uppercase tracking-wide text-kood-muted">Extra</p>
-			<p class="mt-1 text-sm text-kood-text">
-				<span class="font-semibold text-emerald-200/90">{summary.extra.pass}</span>
-				<span class="text-kood-muted"> passed</span>
-				<span class="mx-1.5 text-kood-border/60">·</span>
-				<span class="font-semibold text-red-200/90">{summary.extra.fail}</span>
-				<span class="text-kood-muted"> failed</span>
-				<span class="mx-1.5 text-kood-border/60">·</span>
-				<span class="font-semibold text-kood-muted">{summary.extra.pending}</span>
-				<span class="text-kood-muted"> pending</span>
-			</p>
-			<p class="mt-1 text-[11px] text-kood-muted/90">of {summary.extra.total} checks</p>
 		</div>
 	</div>
 
@@ -88,36 +81,28 @@
 		<p class="mt-4 text-xs text-emerald-200/85">No failed mandatory rows in the current snapshot.</p>
 	{/if}
 
-	<div class="mt-6 overflow-x-auto rounded-lg border border-kood-border/70">
-		<table class="min-w-full divide-y divide-kood-border/50 text-left text-xs">
-			<thead class="bg-kood-bg/50 text-[10px] font-semibold uppercase tracking-wide text-kood-muted">
-				<tr>
-					<th class="whitespace-nowrap px-3 py-2.5">ID</th>
-					<th class="px-3 py-2.5">Section</th>
-					<th class="px-3 py-2.5">Owner</th>
-					<th class="whitespace-nowrap px-3 py-2.5">{reviewerAColumn}</th>
-					<th class="whitespace-nowrap px-3 py-2.5">{reviewerBColumn}</th>
-					<th class="whitespace-nowrap px-3 py-2.5">Result</th>
-					<th class="min-w-[12rem] px-3 py-2.5">Summary</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-kood-border/40 text-kood-text/90">
-				{#each [...mandatoryRows, ...extraRows] as r (r.itemId)}
-					<tr class="bg-kood-surface/40 odd:bg-kood-bg/20">
-						<td class="whitespace-nowrap px-3 py-2 font-mono text-[10px] text-kood-muted">{r.itemId}</td>
-						<td class="px-3 py-2 capitalize text-kood-muted">{r.section}</td>
-						<td class="px-3 py-2 text-kood-muted">{r.mandatoryOwner ?? '—'}</td>
-						<td class={`whitespace-nowrap px-3 py-2 font-medium tabular-nums ${verdictChip(r.jane)}`}>{r.jane}</td>
-						<td class={`whitespace-nowrap px-3 py-2 font-medium tabular-nums ${verdictChip(r.joe)}`}>{r.joe}</td>
-						<td class="whitespace-nowrap px-3 py-2">
-							<span class={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${outcomeClass(r.outcome)}`}>
-								{outcomeLabel(r.outcome)}
-							</span>
-						</td>
-						<td class="max-w-xs px-3 py-2 text-kood-muted">{r.summary}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+	<div class="mt-6 space-y-3">
+		{#each mandatoryRows as r (r.itemId)}
+			<details class="overflow-hidden rounded-lg border border-kood-border/70 bg-kood-bg/20">
+				<summary class="cursor-pointer list-none px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden">
+					<div class="flex flex-wrap items-center gap-2 text-xs">
+						<span class="font-mono text-[10px] text-kood-muted">{r.itemId}</span>
+						<span class="text-kood-muted">owner: {r.mandatoryOwner ?? '—'}</span>
+						<span class={`font-medium tabular-nums ${verdictChip(r.jane)}`}>{reviewerAColumn}: {r.jane}</span>
+						<span class={`font-medium tabular-nums ${verdictChip(r.joe)}`}>{reviewerBColumn}: {r.joe}</span>
+						<span class={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${outcomeClass(r.outcome)}`}>
+							{outcomeLabel(r.outcome)}
+						</span>
+					</div>
+					<p class="mt-1 text-xs text-kood-muted">{r.summary}</p>
+				</summary>
+				<div class="border-t border-kood-border/50 px-3 py-3">
+					<AdminThreadConversationFeed
+						groups={threadGroupsFor(r.itemId)}
+						emptyLabel="No testing comments saved yet for this checklist row."
+					/>
+				</div>
+			</details>
+		{/each}
 	</div>
 </section>
