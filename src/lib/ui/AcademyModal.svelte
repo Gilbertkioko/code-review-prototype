@@ -170,7 +170,7 @@
 	}
 </script>
 
-<Modal open={$academyModalOpen} title="Code Review Academy">
+<Modal open={$academyModalOpen} title="Code Review Academy" maxWidth="max-w-2xl">
 	{#snippet children()}
 		<div class="academy-modal">
 			<div class="top-row">
@@ -213,7 +213,7 @@
 	.academy-modal {
 		max-height: 70vh;
 		overflow-y: auto;
-		padding-right: 4px;
+		padding-right: 2px;
 	}
 
 	.top-row {
@@ -235,10 +235,11 @@
 		margin: 0;
 		padding: 10px 14px;
 		border-radius: 999px;
-		background: rgba(83, 102, 255, 0.08);
-		color: #2f3e8f;
+		background: rgba(220, 249, 0, 0.08);
+		color: var(--kood-text);
 		font-size: 0.85rem;
-		font-weight: 600;
+		font-weight: bold;
+		border: 1px solid rgba(220, 249, 0, 0.2);
 	}
 
 	.category-chips {
@@ -305,10 +306,10 @@
 	.obs-action {
 		padding: 12px 14px;
 		border-radius: 12px;
-		background: rgba(97, 172, 255, 0.08);
+		background: rgba(220, 249, 0, 0.08);
 		color: var(--kood-text);
 		font-size: 0.9rem;
-		border: 1px solid rgba(97, 172, 255, 0.2);
+		border: 1px solid rgba(220, 249, 0, 0.2);
 	}
 
 	button:hover {
