@@ -1,5 +1,6 @@
 import { notifyAdminDashboard } from '$lib/server/review-live';
 import {
+	adminDisableUser,
 	adminDeleteUser,
 	adminSetUserRole,
 	listUsersForAdmin
@@ -38,5 +39,16 @@ export const actions: Actions = {
 		if (!res.ok) return fail(400, { message: res.error });
 		notifyAdminDashboard();
 		return { success: true };
+	},
+	disableUser: async (event) => {
+		const admin = event.locals.user;
+		if (!admin || admin.role !== 'admin') return fail(403);
+		const fd = await event.request.formData();
+		const userId = fd.get('userId');
+		if (typeof userId !== 'string') return fail(400, { message: 'Missing user' });
+		const res = await adminDisableUser(userId, admin.id);
+		if (!res.ok) return fail(400, { message: res.error });
+		notifyAdminDashboard();
+		return { success: true, message: 'Account disabled. User has been signed out and can no longer log in.' };
 	}
 };

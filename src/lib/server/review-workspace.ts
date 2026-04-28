@@ -3,6 +3,7 @@ import type { CategorySession, TestingItem } from '$lib/types';
 import { parseCodeReviewSavePayload } from './code-review-payload';
 import { and, asc, desc, eq, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
+import { hash } from '@node-rs/argon2';
 import { generateIdFromEntropySize } from 'lucia';
 import { getDb } from './db';
 import {
@@ -677,6 +678,30 @@ export async function adminDeleteUser(
 
 	await db.delete(session).where(eq(session.userId, targetId));
 	await db.delete(user).where(eq(user.id, targetId));
+	return { ok: true };
+}
+
+/** Soft lock account by revoking sessions and rotating password hash to an unknown random secret. */
+export async function adminDisableUser(
+	targetId: string,
+	actorId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	if (targetId === actorId) return { ok: false, error: 'You cannot disable your own account' };
+	const db = getDb();
+	const u = await userPublicRow(targetId);
+	if (!u) return { ok: false, error: 'User not found' };
+	if (u.role === 'admin') return { ok: false, error: 'Admin accounts cannot be disabled' };
+
+	const randomSecret = `${generateIdFromEntropySize(18)}:${Date.now()}`;
+	const lockedPasswordHash = await hash(randomSecret, {
+		memoryCost: 19456,
+		timeCost: 2,
+		outputLen: 32,
+		parallelism: 1
+	});
+
+	await db.delete(session).where(eq(session.userId, targetId));
+	await db.update(user).set({ password_hash: lockedPasswordHash }).where(eq(user.id, targetId));
 	return { ok: true };
 }
 
