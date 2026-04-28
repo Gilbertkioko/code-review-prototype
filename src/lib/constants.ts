@@ -25,23 +25,28 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 's1',
-				text: 'Input sanitization — Treat external input as untrusted; validate and escape before it drives queries or behaviour.'
+				text: 'Input sanitization — Treat external input as untrusted; validate and escape before it drives queries or behaviour.',
+				submitterText: 'Your code properly sanitizes and validates all external inputs to prevent security risks.'
 			},
 			{
 				id: 's2',
-				text: 'Authentication handling — Verify that a user is who they claim to be with proper mechanisms, not client-only flags.'
+				text: 'Authentication handling — Verify that a user is who they claim to be with proper mechanisms, not client-only flags.',
+				submitterText: 'Your authentication mechanisms correctly verify user identities without relying on client-side flags.'
 			},
 			{
 				id: 's3',
-				text: 'Authorization checks — Users only reach what they should; watch missing permission checks and access-by-ID gaps.'
+				text: 'Authorization checks — Users only reach what they should; watch missing permission checks and access-by-ID gaps.',
+				submitterText: 'Your code includes proper authorization checks to ensure users can only access permitted resources.'
 			},
 			{
 				id: 's4',
-				text: 'Sensitive data protection — No hardcoded secrets or sensitive values in logs; store and handle credentials safely.'
+				text: 'Sensitive data protection — No hardcoded secrets or sensitive values in logs; store and handle credentials safely.',
+				submitterText: 'Your code protects sensitive data by avoiding hardcoded secrets and safely handling credentials.'
 			},
 			{
 				id: 's5',
-				text: 'Dependency vulnerabilities — Third-party libraries are maintained and not knowingly risky or unnecessary.'
+				text: 'Dependency vulnerabilities — Third-party libraries are maintained and not knowingly risky or unnecessary.',
+				submitterText: 'Your project uses maintained third-party libraries without known vulnerabilities.'
 			}
 		]
 	},
@@ -55,23 +60,28 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 'cr1',
-				text: 'Requirement implementation — Behaviour matches the task; required features exist and nothing central is missing or wrong.'
+				text: 'Requirement implementation — Behaviour matches the task; required features exist and nothing central is missing or wrong.',
+				submitterText: 'Your code fully implements all required features and matches the specified behavior.'
 			},
 			{
 				id: 'cr2',
-				text: 'Edge case handling — Unusual inputs (empty, zero, large, null, boundaries) do not break important flows.'
+				text: 'Edge case handling — Unusual inputs (empty, zero, large, null, boundaries) do not break important flows.',
+				submitterText: 'Your code handles edge cases like empty, zero, large, null, and boundary inputs without breaking.'
 			},
 			{
 				id: 'cr3',
-				text: 'Input validation — External inputs are checked for type, range, format, and missing values where it matters.'
+				text: 'Input validation — External inputs are checked for type, range, format, and missing values where it matters.',
+				submitterText: 'Your code validates external inputs for type, range, format, and completeness.'
 			},
 			{
 				id: 'cr4',
-				text: 'Data integrity — Updates and transactions keep related data consistent without partial or inconsistent states.'
+				text: 'Data integrity — Updates and transactions keep related data consistent without partial or inconsistent states.',
+				submitterText: 'Your code maintains data integrity through consistent updates and transactions.'
 			},
 			{
 				id: 'cr5',
-				text: 'Logical correctness — Conditions, operators, algorithms, and loops match the intended behaviour.'
+				text: 'Logical correctness — Conditions, operators, algorithms, and loops match the intended behaviour.',
+				submitterText: 'Your code\'s logic, including conditions, operators, algorithms, and loops, is correct.'
 			}
 		]
 	},
@@ -85,23 +95,28 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 'p1',
-				text: 'Algorithm complexity — How work grows with input size; avoid accidental heavy nested scans where indexes or maps fit.'
+				text: 'Algorithm complexity — How work grows with input size; avoid accidental heavy nested scans where indexes or maps fit.',
+				submitterText: 'Your algorithms are efficient, avoiding unnecessary complexity as input size grows.'
 			},
 			{
 				id: 'p2',
-				text: 'Database query efficiency — Watch N+1 patterns, over-fetching, and many tiny queries where one batch would do.'
+				text: 'Database query efficiency — Watch N+1 patterns, over-fetching, and many tiny queries where one batch would do.',
+				submitterText: 'Your database queries are efficient, avoiding N+1 patterns and over-fetching.'
 			},
 			{
 				id: 'p3',
-				text: 'Memory efficiency — Avoid loading huge datasets into memory when pagination, streaming, or filtering is enough.'
+				text: 'Memory efficiency — Avoid loading huge datasets into memory when pagination, streaming, or filtering is enough.',
+				submitterText: 'Your code uses memory efficiently, avoiding unnecessary loading of large datasets.'
 			},
 			{
 				id: 'p4',
-				text: 'I/O efficiency — Reuse or batch APIs, files, and network calls instead of repeating identical work in tight loops.'
+				text: 'I/O efficiency — Reuse or batch APIs, files, and network calls instead of repeating identical work in tight loops.',
+				submitterText: 'Your I/O operations are efficient, reusing and batching where possible.'
 			},
 			{
 				id: 'p5',
-				text: 'Caching usage — Do not recompute or refetch the same expensive result when a small cache or reuse is clearly better.'
+				text: 'Caching usage — Do not recompute or refetch the same expensive result when a small cache or reuse is clearly better.',
+				submitterText: 'Your code uses caching effectively to avoid recomputing expensive results.'
 			}
 		]
 	},
@@ -115,23 +130,28 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 'st1',
-				text: 'Separation of concerns — Business logic, UI, data access, and infrastructure are not mixed in one place.'
+				text: 'Separation of concerns — Business logic, UI, data access, and infrastructure are not mixed in one place.',
+				submitterText: 'Your code separates concerns properly, keeping business logic, UI, data access, and infrastructure distinct.'
 			},
 			{
 				id: 'st2',
-				text: 'Module organization — Folders and files group related concerns so the layout is predictable for newcomers.'
+				text: 'Module organization — Folders and files group related concerns so the layout is predictable for newcomers.',
+				submitterText: 'Your project is well-organized with modules and files grouped logically.'
 			},
 			{
 				id: 'st3',
-				text: 'Dependency management — Coupling, import fan-in, and circular dependencies stay under control.'
+				text: 'Dependency management — Coupling, import fan-in, and circular dependencies stay under control.',
+				submitterText: 'Your code manages dependencies well, controlling coupling and avoiding circular dependencies.'
 			},
 			{
 				id: 'st4',
-				text: 'Layer boundaries — Logic stays in the layer it belongs to, without leaking DB or transport details upward.'
+				text: 'Layer boundaries — Logic stays in the layer it belongs to, without leaking DB or transport details upward.',
+				submitterText: 'Your code respects layer boundaries, preventing leakage of lower-level details.'
 			},
 			{
 				id: 'st5',
-				text: 'Code cohesion — Each module keeps closely related responsibilities instead of unrelated grab-bags.'
+				text: 'Code cohesion — Each module keeps closely related responsibilities instead of unrelated grab-bags.',
+				submitterText: 'Your modules have high cohesion, focusing on related responsibilities.'
 			}
 		]
 	}

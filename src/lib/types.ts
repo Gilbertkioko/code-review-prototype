@@ -29,6 +29,7 @@ export interface TestingItem {
 	id: string;
 	section: 'mandatory' | 'extra';
 	text: string;
+	submitterText: string;
 	/** Mandatory only: exactly one reviewer owns Accept/Decline; the other observes (read-only). */
 	mandatoryOwner?: 'jane' | 'joe';
 	/** Each reviewer’s verdict for the current round. */
@@ -42,6 +43,7 @@ export interface TestingItem {
 export interface ObservationDef {
 	id: string;
 	text: string;
+	submitterText: string;
 }
 
 export interface CategoryDef {

@@ -14,6 +14,7 @@
 	import { getRealtimeSocket } from '$lib/socket';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import AcademyModal from '$lib/ui/AcademyModal.svelte';
 
 	let { children, data } = $props();
 
@@ -193,3 +194,5 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 {@render children()}
+
+<AcademyModal />
