@@ -131,95 +131,85 @@
 </script>
 
 <div class="mx-auto max-w-5xl space-y-6">
-	<header class="border-t border-kood-border pt-6">
-		<h2 class="text-xl font-semibold text-kood-text">Sprint · category observations</h2>
-		<p class="mt-1 text-sm text-kood-muted">
-			{#if app.role === 'joe'}
-				You own Performance and Structure &amp; architecture; {jName} owns Security and Correctness. Only the assignee
-				Accepts/Declines; the peer reads along and can use the thread.
-			{:else if app.role === 'sandra'}
-				{sandraName} (submitter) follows both boards read-only. {jName} owns Security and Correctness; {oName} owns
-				Performance and Structure &amp; architecture. Only each assignee Accepts/Declines on their rows.
-			{:else}
-				You own Security and Correctness; {oName} owns Performance and Structure &amp; architecture. Only the assignee
-				Accepts/Declines; the peer reads along and can use the thread.
-			{/if}
-		</p>
-	</header>
 
-	{#if isReviewer}
-		<section class="rounded-lg border border-kood-border bg-kood-surface p-5">
-			<h3 class="text-sm font-semibold text-kood-text">How to run the async sprint?</h3>
-			<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
-				<li>Accept or decline each observation; use the thread for specifics (paper plane to send).</li>
-				<li>Align with the live call plan in Standup once every row in every category is accepted.</li>
-			</ol>
-		</section>
-	{/if}
+	<details class="group rounded-lg border border-kood-border bg-kood-surface" aria-label="Sprint observation progress">
+		<summary
+			class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wide text-kood-muted marker:content-none [&::-webkit-details-marker]:hidden"
+		>
+			<span>Team · sprint completion</span>
+			<svg
+				class="size-4 shrink-0 text-kood-muted transition-transform duration-200 ease-out group-open:rotate-180"
+				viewBox="0 0 20 20"
+				fill="currentColor"
+				aria-hidden="true"
+			>
+				<path
+					fill-rule="evenodd"
+					d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+					clip-rule="evenodd"
+				/>
+			</svg>
+		</summary>
+		<div class="border-t border-kood-border/60 px-4 py-4">
+			<p class="text-sm text-kood-text">
+				<strong class="text-kood-text">{codeReviewOwnedResolvedCount()}</strong>
+				<span class="text-kood-muted"> / {fullList.length}</span>
+				<span class="text-kood-muted"> rows with a verdict (accepted or declined)</span>
+			</p>
 
-	<section
-		class="rounded-lg border border-kood-border bg-kood-surface p-4"
-		aria-label="Sprint observation progress"
-	>
-		<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Team · sprint completion</p>
-		<p class="mt-1 text-sm text-kood-text">
-			<strong class="text-kood-text">{codeReviewOwnedResolvedCount()}</strong>
-			<span class="text-kood-muted"> / {fullList.length}</span>
-			<span class="text-kood-muted"> rows with a verdict (accepted or declined)</span>
-		</p>
+			<p class="mt-3 text-[11px] text-kood-muted">
+				<span class="inline-flex items-center gap-1">
+					<span class="inline-block size-2 rounded-sm bg-kood-accent/55 ring-1 ring-kood-accent/50"></span>
+					Accepted
+				</span>
+				<span class="ml-3 inline-flex items-center gap-1">
+					<span class="inline-block size-2 rounded-sm bg-red-500/50 ring-1 ring-red-400/45"></span>
+					Declined
+				</span>
+				<span class="ml-3 inline-flex items-center gap-1">
+					<span class="inline-block size-2 rounded-sm bg-kood-bg ring-1 ring-kood-border/60"></span>
+					Pending
+				</span>
+			</p>
 
-		<p class="mt-3 text-[11px] text-kood-muted">
-			<span class="inline-flex items-center gap-1">
-				<span class="inline-block size-2 rounded-sm bg-kood-accent/55 ring-1 ring-kood-accent/50"></span>
-				Accepted
-			</span>
-			<span class="ml-3 inline-flex items-center gap-1">
-				<span class="inline-block size-2 rounded-sm bg-red-500/50 ring-1 ring-red-400/45"></span>
-				Declined
-			</span>
-			<span class="ml-3 inline-flex items-center gap-1">
-				<span class="inline-block size-2 rounded-sm bg-kood-bg ring-1 ring-kood-border/60"></span>
-				Pending
-			</span>
-		</p>
-
-		<div class="mt-4 grid gap-4 sm:grid-cols-2">
-			<div>
-				<div class="flex items-center justify-between text-xs">
-					<span class="font-medium text-kood-text">{janeBucketHeader}</span>
-					<span class="text-kood-muted">{janeProg.resolved}/{janeProg.owned}</span>
+			<div class="mt-4 grid gap-4 sm:grid-cols-2">
+				<div>
+					<div class="flex items-center justify-between text-xs">
+						<span class="font-medium text-kood-text">{janeBucketHeader}</span>
+						<span class="text-kood-muted">{janeProg.resolved}/{janeProg.owned}</span>
+					</div>
+					<div
+						class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
+						role="img"
+						aria-label="{janeBucketHeader}: {janeProg.accepted} accepted, {janeProg.declined} declined"
+					>
+						<div class="h-full bg-kood-accent/55 transition-[width] duration-300" style="width: {janeAcceptPct}%"></div>
+						<div class="h-full bg-red-500/50 transition-[width] duration-300" style="width: {janeDeclinePct}%"></div>
+					</div>
 				</div>
-				<div
-					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
-					role="img"
-					aria-label="{janeBucketHeader}: {janeProg.accepted} accepted, {janeProg.declined} declined"
-				>
-					<div class="h-full bg-kood-accent/55 transition-[width] duration-300" style="width: {janeAcceptPct}%"></div>
-					<div class="h-full bg-red-500/50 transition-[width] duration-300" style="width: {janeDeclinePct}%"></div>
-				</div>
-			</div>
-			<div>
-				<div class="flex items-center justify-between text-xs">
-					<span class="font-medium text-kood-text">{joeBucketHeader}</span>
-					<span class="text-kood-muted">{joeProg.resolved}/{joeProg.owned}</span>
-				</div>
-				<div
-					class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
-					role="img"
-					aria-label="{joeBucketHeader}: {joeProg.accepted} accepted, {joeProg.declined} declined"
-				>
-					<div class="h-full bg-kood-accent/55 transition-[width] duration-300" style="width: {joeAcceptPct}%"></div>
-					<div class="h-full bg-red-500/50 transition-[width] duration-300" style="width: {joeDeclinePct}%"></div>
+				<div>
+					<div class="flex items-center justify-between text-xs">
+						<span class="font-medium text-kood-text">{joeBucketHeader}</span>
+						<span class="text-kood-muted">{joeProg.resolved}/{joeProg.owned}</span>
+					</div>
+					<div
+						class="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-kood-bg ring-1 ring-kood-border/60"
+						role="img"
+						aria-label="{joeBucketHeader}: {joeProg.accepted} accepted, {joeProg.declined} declined"
+					>
+						<div class="h-full bg-kood-accent/55 transition-[width] duration-300" style="width: {joeAcceptPct}%"></div>
+						<div class="h-full bg-red-500/50 transition-[width] duration-300" style="width: {joeDeclinePct}%"></div>
+					</div>
 				</div>
 			</div>
+
+			<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
+				Pages switch <strong class="text-kood-text/80">whole categories</strong> for the active tab so it is always clear
+				what theme you are in. You need <strong class="text-kood-text/80">every</strong> observation accepted by its
+				assignee before the sprint can move to Standup.
+			</p>
 		</div>
-
-		<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
-			Pages switch <strong class="text-kood-text/80">whole categories</strong> for the active tab so it is always clear
-			what theme you are in. You need <strong class="text-kood-text/80">every</strong> observation accepted by its
-			assignee before the sprint can move to Standup.
-		</p>
-	</section>
+	</details>
 
 	<div class="flex flex-wrap justify-end gap-2">
 		<button

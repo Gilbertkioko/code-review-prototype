@@ -3,10 +3,12 @@
 
 	let {
 		groups,
-		emptyLabel = 'Nothing saved yet.'
+		emptyLabel = 'Nothing saved yet.',
+		showContextHeader = true
 	}: {
 		groups: AuditThreadGroup[];
 		emptyLabel?: string;
+		showContextHeader?: boolean;
 	} = $props();
 
 	function initials(label: string): string {
@@ -61,10 +63,16 @@
 					class="flex cursor-pointer list-none items-center justify-between gap-2 border-b border-kood-border/70 bg-kood-surface/60 px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden"
 				>
 					<div class="min-w-0 flex-1">
-						<h2 class="text-sm font-medium leading-snug text-kood-text">{g.context}</h2>
-						<p class="mt-1 text-[11px] text-kood-muted">
-							{g.entries.length} message{g.entries.length === 1 ? '' : 's'} · expand to read the thread
-						</p>
+						{#if showContextHeader}
+							<h2 class="text-sm font-medium leading-snug text-kood-text">{g.context}</h2>
+							<p class="mt-1 text-[11px] text-kood-muted">
+								{g.entries.length} message{g.entries.length === 1 ? '' : 's'} · expand to read the thread
+							</p>
+						{:else}
+							<p class="text-[11px] text-kood-muted">
+								Thread · {g.entries.length} message{g.entries.length === 1 ? '' : 's'}
+							</p>
+						{/if}
 					</div>
 					<svg
 						class="size-5 shrink-0 text-kood-muted transition-transform duration-200 ease-out group-open:rotate-180"
