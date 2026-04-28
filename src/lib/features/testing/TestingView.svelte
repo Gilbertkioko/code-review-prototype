@@ -6,8 +6,7 @@
 		goToCodeReview,
 		mandatoryItems,
 		mandatoryOwnedResolvedCount,
-		mandatoryProgressForReviewer,
-		sandraStartNewTestingRound
+	mandatoryProgressForReviewer
 	} from '$lib/appState.svelte';
 	import TestingItemCard from './TestingItemCard.svelte';
 
@@ -28,18 +27,6 @@
 		if (r === 'jane') mandatoryFilter = 'jane_owned';
 		else if (r === 'joe') mandatoryFilter = 'joe_owned';
 		else mandatoryFilter = 'jane_owned';
-	});
-
-	/** When viewing as Joe on Joe’s tab, open two rows that show decline → Sandra fix → accept. */
-	let joeChecksHistoryExpanded = $state(false);
-	$effect(() => {
-		if (app.role !== 'joe' || mandatoryFilter !== 'joe_owned') {
-			joeChecksHistoryExpanded = false;
-			return;
-		}
-		if (joeChecksHistoryExpanded) return;
-		expanded = { ...expanded, m19: true, m20: true };
-		joeChecksHistoryExpanded = true;
 	});
 
 	const mandatoryList = $derived(mandatoryItems());
@@ -223,7 +210,7 @@
 
 	{#if isSandra}
 		<p class="text-xs text-kood-muted" role="status">
-			Verdicts are read-only for you — expand a row for the thread. Use <strong class="text-kood-text/90">Start new testing round</strong> after fixes.
+			Verdicts are read-only for you — expand a row for the thread.
 		</p>
 	{/if}
 
@@ -266,19 +253,6 @@
 			{/each}
 		</div>
 	</section>
-
-	{#if isSandra}
-		<div class="flex flex-wrap gap-3 rounded-lg border border-kood-border bg-kood-surface p-4">
-			<button
-				type="button"
-				class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-200/90 hover:bg-amber-500/15"
-				onclick={() => sandraStartNewTestingRound()}>Start new testing round</button
-			>
-			<p class="text-xs text-kood-muted">
-				Archives current verdicts per row and bumps the round; comments stay in the thread.
-			</p>
-		</div>
-	{/if}
 
 	<div class="rounded-lg border border-kood-border bg-kood-surface p-4 text-sm text-kood-muted">
 		<p class="text-xs uppercase tracking-wide text-kood-muted/80">Submitted</p>

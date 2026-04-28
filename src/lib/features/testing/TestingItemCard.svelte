@@ -145,13 +145,6 @@
 					onclick={() => setTestingVerdict(item.id, self!, 'accept')}>Accept</button
 				>
 			</div>
-		{:else if isReviewer && self && item.section === 'mandatory' && owner && owner !== self}
-			<p class="ml-auto max-w-[14rem] text-right text-[11px] text-kood-muted">
-				Read-only verdict here — expand to comment in the thread.
-			</p>
-		{/if}
-		{#if isSandra && !open}
-			<p class="ml-auto text-[11px] text-kood-muted">Expand for thread</p>
 		{/if}
 	</div>
 

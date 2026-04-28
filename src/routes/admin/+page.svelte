@@ -52,74 +52,6 @@
 			</div>
 		</header>
 
-		<div class="mx-auto max-w-3xl">
-			<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-6 md:p-8">
-				<h2 class="border-b border-kood-border/50 pb-3 text-sm font-semibold text-kood-text">Pair reviewers</h2>
-
-				<form method="post" action="?/assignPair" class="mt-6 space-y-5" use:enhance>
-					<div>
-						<label class="text-xs font-bold uppercase tracking-wide text-kood-muted" for="projectId">Project</label>
-						<select
-							id="projectId"
-							name="projectId"
-							required
-							class="mt-2 w-full rounded-xl border border-kood-border bg-kood-bg px-4 py-3 text-sm text-kood-text shadow-inner transition focus:border-kood-accent/50 focus:outline-none focus:ring-2 focus:ring-kood-accent/20"
-						>
-							<option value="" disabled selected>Select project…</option>
-							{#each data.pairable as p (p.id)}
-								<option value={p.id}>
-									{p.displayTitle} — Submitter: {p.submitterUsername}
-								</option>
-							{/each}
-						</select>
-						{#if data.pairable.length === 0}
-							<p class="mt-2 text-xs text-kood-muted/85">No projects waiting for a pair.</p>
-						{/if}
-					</div>
-					<div class="grid gap-4 sm:grid-cols-2">
-						<div>
-							<label class="text-xs font-bold uppercase tracking-wide text-kood-muted" for="reviewerAId"
-								>Reviewer A</label
-							>
-							<select
-								id="reviewerAId"
-								name="reviewerAId"
-								required
-								class="mt-2 w-full rounded-xl border border-kood-border bg-kood-bg px-4 py-3 text-sm text-kood-text focus:border-kood-accent/50 focus:outline-none focus:ring-2 focus:ring-kood-accent/20"
-							>
-								<option value="" disabled selected>Slot 1…</option>
-								{#each data.reviewers as r (r.id)}
-									<option value={r.id}>{r.username}</option>
-								{/each}
-							</select>
-						</div>
-						<div>
-							<label class="text-xs font-bold uppercase tracking-wide text-kood-muted" for="reviewerBId"
-								>Reviewer B</label
-							>
-							<select
-								id="reviewerBId"
-								name="reviewerBId"
-								required
-								class="mt-2 w-full rounded-xl border border-kood-border bg-kood-bg px-4 py-3 text-sm text-kood-text focus:border-kood-accent/50 focus:outline-none focus:ring-2 focus:ring-kood-accent/20"
-							>
-								<option value="" disabled selected>Slot 2…</option>
-								{#each data.reviewers as r (r.id)}
-									<option value={r.id}>{r.username}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-					<button
-						type="submit"
-						class="w-full rounded-lg border border-kood-border bg-kood-text px-5 py-2.5 text-sm font-semibold text-kood-bg transition hover:opacity-90 sm:w-auto"
-					>
-						Create pair &amp; activate review
-					</button>
-				</form>
-			</section>
-		</div>
-
 		<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-6 md:p-8">
 			<h2 class="border-b border-kood-border/50 pb-3 text-sm font-semibold text-kood-text">Active projects</h2>
 			<ul class="mt-6 grid gap-4 sm:grid-cols-2">
@@ -154,6 +86,37 @@
 								class="inline-flex items-center rounded-lg border border-kood-border bg-kood-surface px-3 py-1.5 text-xs font-medium text-kood-text hover:bg-kood-surface-raised"
 								href="/admin/projects/{p.id}">Open audit</a
 							>
+							{#if p.status === 'repo_submitted'}
+								<form method="post" action="?/assignPair" class="inline-flex flex-wrap gap-2" use:enhance>
+									<input type="hidden" name="projectId" value={p.id} />
+									<select
+										name="reviewerAId"
+										required
+										class="rounded-lg border border-kood-border bg-kood-surface px-2 py-1.5 text-xs text-kood-text"
+									>
+										<option value="" disabled selected>Reviewer A</option>
+										{#each data.reviewers as r (r.id)}
+											<option value={r.id}>{r.username}</option>
+										{/each}
+									</select>
+									<select
+										name="reviewerBId"
+										required
+										class="rounded-lg border border-kood-border bg-kood-surface px-2 py-1.5 text-xs text-kood-text"
+									>
+										<option value="" disabled selected>Reviewer B</option>
+										{#each data.reviewers as r (r.id)}
+											<option value={r.id}>{r.username}</option>
+										{/each}
+									</select>
+									<button
+										type="submit"
+										class="rounded-lg border border-kood-border bg-kood-text px-3 py-1.5 text-xs font-semibold text-kood-bg transition hover:opacity-90"
+									>
+										Pair reviewers
+									</button>
+								</form>
+							{/if}
 							{#if p.status === 'review_active'}
 								<form method="post" action="?/markComplete" class="inline">
 									<input type="hidden" name="projectId" value={p.id} />
