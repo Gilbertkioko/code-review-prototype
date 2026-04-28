@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
 
@@ -14,6 +15,15 @@
 		data.users.slice(
 			accountsPageSafe * ACCOUNTS_PAGE_SIZE,
 			accountsPageSafe * ACCOUNTS_PAGE_SIZE + ACCOUNTS_PAGE_SIZE
+		)
+	);
+
+	const pairedTotalPages = $derived(Math.max(1, Math.ceil(data.pairedProjects.length / PAIRED_PAGE_SIZE)));
+	const pairedPageSafe = $derived(Math.min(pairedPage, pairedTotalPages - 1));
+	const pairedSlice = $derived(
+		data.pairedProjects.slice(
+			pairedPageSafe * PAIRED_PAGE_SIZE,
+			pairedPageSafe * PAIRED_PAGE_SIZE + PAIRED_PAGE_SIZE
 		)
 	);
 
@@ -97,36 +107,20 @@
 							</td>
 							<td class="px-3 py-3">
 								{#if u.role !== 'admin'}
-									<div class="flex flex-wrap items-center gap-3">
-										<form method="post" action="?/disableUser" use:enhance={refreshAfterSubmit}>
-											<input type="hidden" name="userId" value={u.id} />
-											<button
-												type="submit"
-												class="text-xs text-amber-300 underline decoration-kood-border decoration-dotted hover:text-amber-200"
-												onclick={(e) => {
-													if (!confirm(`Disable account “${u.username}”? They will be signed out and blocked from login.`)) {
-														e.preventDefault();
-													}
-												}}
-											>
-												Disable
-											</button>
-										</form>
-										<form method="post" action="?/deleteUser" use:enhance={refreshAfterSubmit}>
-											<input type="hidden" name="userId" value={u.id} />
-											<button
-												type="submit"
-												class="text-xs text-kood-muted underline decoration-kood-border decoration-dotted hover:text-kood-text"
-												onclick={(e) => {
-													if (!confirm(`Remove account “${u.username}”? This cannot be undone.`)) {
-														e.preventDefault();
-													}
-												}}
-											>
-												Remove
-											</button>
-										</form>
-									</div>
+									<form method="post" action="?/deleteUser" use:enhance={refreshAfterSubmit}>
+										<input type="hidden" name="userId" value={u.id} />
+										<button
+											type="submit"
+											class="text-xs text-kood-muted underline decoration-kood-border decoration-dotted hover:text-kood-text"
+											onclick={(e) => {
+												if (!confirm(`Remove account “${u.username}”? This cannot be undone.`)) {
+													e.preventDefault();
+												}
+											}}
+										>
+											Remove
+										</button>
+									</form>
 								{:else}
 									<span class="text-[11px] text-kood-muted/60">—</span>
 								{/if}
@@ -154,4 +148,112 @@
 		{/if}
 	</section>
 
+	<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
+		<div class="flex flex-wrap items-end justify-between gap-3 border-b border-kood-border/50 pb-3">
+			<h2 class="text-sm font-semibold text-kood-text">Reassign reviewer</h2>
+			{#if data.pairedProjects.length > PAIRED_PAGE_SIZE}
+				<p class="text-xs text-kood-muted">
+					Page <span class="tabular-nums text-kood-text">{pairedPageSafe + 1}</span> / {pairedTotalPages}
+				</p>
+			{/if}
+		</div>
+
+		{#if data.pairedProjects.length === 0}
+			<p class="mt-4 text-sm text-kood-muted">No active paired projects.</p>
+		{:else}
+			<ul class="mt-5 space-y-6">
+				{#each pairedSlice as p (p.id)}
+					<li class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-4">
+						<p class="font-medium text-kood-text">{p.displayTitle}</p>
+						<p class="mt-1 font-mono text-[11px] text-kood-muted">{p.status}</p>
+						<div class="mt-4 grid gap-4 md:grid-cols-2">
+							<div>
+								<p class="text-[10px] font-medium uppercase tracking-wide text-kood-muted">Slot A</p>
+								<p class="mt-1 text-xs text-kood-text/90">{p.reviewerAUsername}</p>
+								<form
+									method="post"
+									action="?/reassignReviewer"
+									class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
+									use:enhance={refreshAfterSubmit}
+								>
+									<input type="hidden" name="projectId" value={p.id} />
+									<input type="hidden" name="slot" value="A" />
+									<select
+										name="newReviewerId"
+										required
+										class="min-w-0 flex-1 rounded-md border border-kood-border bg-kood-bg px-2 py-2 text-xs text-kood-text"
+									>
+										<option value="" disabled selected>Reviewer…</option>
+										{#each data.reviewers as r (r.id)}
+											{#if r.id !== p.reviewerBId}
+												<option value={r.id}>{r.username}</option>
+											{/if}
+										{/each}
+									</select>
+									<button
+										type="submit"
+										class="shrink-0 rounded-md border border-kood-border bg-kood-surface px-3 py-2 text-[11px] font-medium text-kood-text hover:bg-kood-surface-raised"
+									>
+										Set A
+									</button>
+								</form>
+							</div>
+							<div>
+								<p class="text-[10px] font-medium uppercase tracking-wide text-kood-muted">Slot B</p>
+								<p class="mt-1 text-xs text-kood-text/90">{p.reviewerBUsername}</p>
+								<form
+									method="post"
+									action="?/reassignReviewer"
+									class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
+									use:enhance={refreshAfterSubmit}
+								>
+									<input type="hidden" name="projectId" value={p.id} />
+									<input type="hidden" name="slot" value="B" />
+									<select
+										name="newReviewerId"
+										required
+										class="min-w-0 flex-1 rounded-md border border-kood-border bg-kood-bg px-2 py-2 text-xs text-kood-text"
+									>
+										<option value="" disabled selected>Reviewer…</option>
+										{#each data.reviewers as r (r.id)}
+											{#if r.id !== p.reviewerAId}
+												<option value={r.id}>{r.username}</option>
+											{/if}
+										{/each}
+									</select>
+									<button
+										type="submit"
+										class="shrink-0 rounded-md border border-kood-border bg-kood-surface px-3 py-2 text-[11px] font-medium text-kood-text hover:bg-kood-surface-raised"
+									>
+										Set B
+									</button>
+								</form>
+							</div>
+						</div>
+						<p class="mt-3 text-center">
+							<a class="text-xs text-kood-text underline decoration-kood-border" href="/admin/projects/{p.id}"
+								>Audit</a
+							>
+						</p>
+					</li>
+				{/each}
+			</ul>
+			{#if data.pairedProjects.length > PAIRED_PAGE_SIZE}
+				<div class="mt-6 flex flex-wrap items-center justify-between gap-2">
+					<button
+						type="button"
+						class="rounded-md border border-kood-border px-3 py-1.5 text-xs text-kood-text hover:bg-kood-bg/40 disabled:opacity-40"
+						disabled={pairedPageSafe <= 0}
+						onclick={() => (pairedPage = pairedPageSafe - 1)}>Previous</button
+					>
+					<button
+						type="button"
+						class="rounded-md border border-kood-border px-3 py-1.5 text-xs text-kood-text hover:bg-kood-bg/40 disabled:opacity-40"
+						disabled={pairedPageSafe >= pairedTotalPages - 1}
+						onclick={() => (pairedPage = pairedPageSafe + 1)}>Next</button
+					>
+				</div>
+			{/if}
+		{/if}
+	</section>
 </div>
