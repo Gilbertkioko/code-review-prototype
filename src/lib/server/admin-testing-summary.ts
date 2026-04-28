@@ -81,13 +81,7 @@ function applyProgressRows(items: TestingItem[], rows: ProgressRow[]): TestingIt
 		return {
 			...def,
 			jane: asVerdict(r.janeVerdict),
-			joe: asVerdict(r.joeVerdict),
-			section: r.section === 'mandatory' || r.section === 'extra' ? r.section : def.section,
-			mandatoryOwner:
-				r.mandatoryOwner === 'jane' || r.mandatoryOwner === 'joe'
-					? r.mandatoryOwner
-					: def.mandatoryOwner,
-			text: typeof r.itemSummary === 'string' && r.itemSummary.trim() ? r.itemSummary : def.text
+			joe: asVerdict(r.joeVerdict)
 		};
 	});
 }

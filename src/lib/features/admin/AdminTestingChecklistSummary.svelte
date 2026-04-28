@@ -33,7 +33,13 @@
 		return 'text-kood-muted';
 	}
 
+	type OwnerTab = 'jane' | 'joe';
+	let activeOwnerTab = $state<OwnerTab>('jane');
+
 	const mandatoryRows = $derived(summary.rows.filter((r) => r.section === 'mandatory'));
+	const reviewerARows = $derived(mandatoryRows.filter((r) => r.mandatoryOwner === 'jane'));
+	const reviewerBRows = $derived(mandatoryRows.filter((r) => r.mandatoryOwner === 'joe'));
+	const visibleRows = $derived(activeOwnerTab === 'jane' ? reviewerARows : reviewerBRows);
 
 	function threadGroupsFor(itemId: string): AuditThreadGroup[] {
 		return threadGroups.filter((g) => g.context.includes(` ${itemId} —`) || g.context.includes(` ${itemId} `));
@@ -81,13 +87,38 @@
 		<p class="mt-4 text-xs text-emerald-200/85">No failed mandatory rows in the current snapshot.</p>
 	{/if}
 
-	<div class="mt-6 space-y-3">
-		{#each mandatoryRows as r (r.itemId)}
+	<div class="mt-6">
+		<div class="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Mandatory checklist by reviewer">
+			<button
+				type="button"
+				class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors {activeOwnerTab === 'jane'
+					? 'border-kood-accent bg-kood-accent/15 text-kood-accent'
+					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
+				role="tab"
+				aria-selected={activeOwnerTab === 'jane'}
+				onclick={() => (activeOwnerTab = 'jane')}
+			>
+				{reviewerAColumn} ({reviewerARows.length})
+			</button>
+			<button
+				type="button"
+				class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors {activeOwnerTab === 'joe'
+					? 'border-kood-accent bg-kood-accent/15 text-kood-accent'
+					: 'border-kood-border text-kood-muted hover:bg-kood-surface-raised'}"
+				role="tab"
+				aria-selected={activeOwnerTab === 'joe'}
+				onclick={() => (activeOwnerTab = 'joe')}
+			>
+				{reviewerBColumn} ({reviewerBRows.length})
+			</button>
+		</div>
+
+		<div class="space-y-3">
+		{#each visibleRows as r (r.itemId)}
 			<details class="overflow-hidden rounded-lg border border-kood-border/70 bg-kood-bg/20">
 				<summary class="cursor-pointer list-none px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden">
 					<div class="flex flex-wrap items-center gap-2 text-xs">
 						<span class="font-mono text-[10px] text-kood-muted">{r.itemId}</span>
-						<span class="text-kood-muted">owner: {r.mandatoryOwner ?? '—'}</span>
 						<span class={`font-medium tabular-nums ${verdictChip(r.jane)}`}>{reviewerAColumn}: {r.jane}</span>
 						<span class={`font-medium tabular-nums ${verdictChip(r.joe)}`}>{reviewerBColumn}: {r.joe}</span>
 						<span class={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${outcomeClass(r.outcome)}`}>
@@ -100,9 +131,11 @@
 					<AdminThreadConversationFeed
 						groups={threadGroupsFor(r.itemId)}
 						emptyLabel="No testing comments saved yet for this checklist row."
+						showContextHeader={false}
 					/>
 				</div>
 			</details>
 		{/each}
+		</div>
 	</div>
 </section>

@@ -126,10 +126,6 @@
 						setCodeReviewVerdict(entry.categoryId, entry.observationId, self!, 'accept')}>Accept</button
 				>
 			</div>
-		{:else if isReviewer && self && owner !== self}
-			<p class="ml-auto max-w-[14rem] text-right text-[11px] text-kood-muted">
-				Read-only verdict here — expand to comment in the thread.
-			</p>
 		{/if}
 		{#if isSandra && !open}
 			<p class="ml-auto text-[11px] text-kood-muted">Expand for thread</p>

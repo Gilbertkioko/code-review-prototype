@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
 
@@ -26,6 +27,13 @@
 			pairedPageSafe * PAIRED_PAGE_SIZE + PAIRED_PAGE_SIZE
 		)
 	);
+
+	const refreshAfterSubmit = () => {
+		return async ({ update }: { update: () => Promise<void> }) => {
+			await update();
+			await invalidateAll();
+		};
+	};
 </script>
 
 <svelte:head>
@@ -78,7 +86,7 @@
 									<span class="text-xs font-medium capitalize text-kood-text/90">admin</span>
 									<p class="mt-1 text-[10px] text-kood-muted">—</p>
 								{:else}
-									<form method="post" action="?/updateUserRole" class="flex flex-wrap items-center gap-2" use:enhance>
+									<form method="post" action="?/updateUserRole" class="flex flex-wrap items-center gap-2" use:enhance={refreshAfterSubmit}>
 										<input type="hidden" name="userId" value={u.id} />
 										<select
 											name="role"
@@ -99,7 +107,7 @@
 							</td>
 							<td class="px-3 py-3">
 								{#if u.role !== 'admin'}
-									<form method="post" action="?/deleteUser" use:enhance>
+									<form method="post" action="?/deleteUser" use:enhance={refreshAfterSubmit}>
 										<input type="hidden" name="userId" value={u.id} />
 										<button
 											type="submit"
@@ -166,7 +174,7 @@
 									method="post"
 									action="?/reassignReviewer"
 									class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
-									use:enhance
+									use:enhance={refreshAfterSubmit}
 								>
 									<input type="hidden" name="projectId" value={p.id} />
 									<input type="hidden" name="slot" value="A" />
@@ -197,7 +205,7 @@
 									method="post"
 									action="?/reassignReviewer"
 									class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
-									use:enhance
+									use:enhance={refreshAfterSubmit}
 								>
 									<input type="hidden" name="projectId" value={p.id} />
 									<input type="hidden" name="slot" value="B" />
