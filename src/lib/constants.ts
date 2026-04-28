@@ -6,7 +6,7 @@ export const ACADEMY_BASE = 'https://kood-review-academy-prototype-sxyr.vercel.a
  * Prototype: sprint board shows at most this many observation rows per category.
  * Sprint completion matches the same cap (see `allCategoriesComplete` / `codeReviewObservationsList`).
  */
-export const CODE_REVIEW_OBSERVATIONS_PER_CATEGORY_CAP = 2;
+export const CODE_REVIEW_OBSERVATIONS_PER_CATEGORY_CAP = 3;
 
 /** Observations included in the async code-review sprint UI and completion rules. */
 export function codeReviewObservationsForCategory(c: CategoryDef) {
@@ -25,15 +25,15 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 's1',
-				text: 'Input sanitization — Treat external input as untrusted; validate and escape before it drives queries or behaviour.'
+				text: 'Input sanitization — Verify that user input (messages, profile data) is validated or sanitized before being used or sent to backend services'
 			},
 			{
 				id: 's2',
-				text: 'Authentication handling — Verify that a user is who they claim to be with proper mechanisms, not client-only flags.'
+				text: 'Authentication handling — Verify that authentication state is derived from a secure source (e.g., FirebaseAuth, token service) and not from client-controlled flags'
 			},
 			{
 				id: 's3',
-				text: 'Authorization checks — Users only reach what they should; watch missing permission checks and access-by-ID gaps.'
+				text: 'Authorization checks — Verify that access to chat conversations is restricted based on the authenticated user’s identity'
 			},
 			{
 				id: 's4',
@@ -55,15 +55,15 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 'cr1',
-				text: 'Requirement implementation — Behaviour matches the task; required features exist and nothing central is missing or wrong.'
+				text: 'Requirement implementation — Verify that sending a message results in it being persisted and displayed in the chat UI.'
 			},
 			{
 				id: 'cr2',
-				text: 'Edge case handling — Unusual inputs (empty, zero, large, null, boundaries) do not break important flows.'
+				text: 'Edge case handling — Verify that the system handles empty message lists without errors.'
 			},
 			{
 				id: 'cr3',
-				text: 'Input validation — External inputs are checked for type, range, format, and missing values where it matters.'
+				text: 'Input validation — Verify that message input prevents invalid values (e.g., empty messages or excessively large payloads).'
 			},
 			{
 				id: 'cr4',
@@ -85,15 +85,15 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 'p1',
-				text: 'Algorithm complexity — How work grows with input size; avoid accidental heavy nested scans where indexes or maps fit.'
+				text: 'Algorithm complexity — Verify that message lookup or user matching logic does not rely on nested iteration over full collections'
 			},
 			{
 				id: 'p2',
-				text: 'Database query efficiency — Watch N+1 patterns, over-fetching, and many tiny queries where one batch would do.'
+				text: 'Database query efficiency — Verify that database queries are not executed inside loops when fetching chat messages or user data'
 			},
 			{
 				id: 'p3',
-				text: 'Memory efficiency — Avoid loading huge datasets into memory when pagination, streaming, or filtering is enough.'
+				text: 'Memory efficiency — Verify that large message lists are not stored entirely in memory without pagination or streaming'
 			},
 			{
 				id: 'p4',
@@ -115,15 +115,15 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 'st1',
-				text: 'Separation of concerns — Business logic, UI, data access, and infrastructure are not mixed in one place.'
+				text: 'Separation of concerns — Verify that UI components do not contain business logic for message handling or user matching'
 			},
 			{
 				id: 'st2',
-				text: 'Module organization — Folders and files group related concerns so the layout is predictable for newcomers.'
+				text: 'Module organization — Verify that project structure groups related features logically (e.g., chat, auth, user profiles'
 			},
 			{
 				id: 'st3',
-				text: 'Dependency management — Coupling, import fan-in, and circular dependencies stay under control.'
+				text: 'Dependency management — Verify that core modules (e.g., services, repositories) do not depend on UI components'
 			},
 			{
 				id: 'st4',

@@ -7,22 +7,7 @@
 </script>
 
 <div class="space-y-6">
-	<header class="space-y-3">
-		<div class="flex flex-wrap gap-2 pt-1">
-			<span class="rounded-full bg-kood-accent/15 px-2.5 py-0.5 text-xs font-semibold text-kood-accent">+10</span>
-			<span class="rounded-full bg-kood-accent/15 px-2.5 py-0.5 text-xs font-semibold text-kood-accent">+10</span>
-			<span class="text-xs text-kood-muted">Teamwork XP for active participation in the review call (mock).</span>
-		</div>
-	</header>
 
-	<section class="rounded-xl border border-kood-border bg-kood-surface p-5 text-sm text-kood-muted">
-		<h3 class="text-sm font-semibold text-kood-text">By participating, you will</h3>
-		<ul class="mt-3 list-disc space-y-2 pl-5">
-			<li>Refine your skills and reinforce good practices.</li>
-			<li>Learn to communicate clearly about technical decisions.</li>
-			<li>Keep standards high while collaborating with peers.</li>
-		</ul>
-	</section>
 
 	<CodeReviewSprintBoard />
 
