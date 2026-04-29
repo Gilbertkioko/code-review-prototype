@@ -21,29 +21,32 @@ export const CATEGORIES: CategoryDef[] = [
 		assignee: 'jane',
 		academyHint: 'cat-security',
 		assignmentBlurb:
-			'The system should resist abuse, protect sensitive data, enforce access control, and avoid trusting the wrong inputs.',
+			'The system should protect race operations data, enforce access control, and prevent incorrect commands from reaching the track screens.',
 		observations: [
 			{
 				id: 's1',
-				text: 'Input sanitization — Verify that user input (messages, profile data) is validated or sanitized before being used or sent to backend services'
+				text: 'Input validation — Verify that race session and driver inputs are validated before being accepted by the server.',
+				submitterText: 'Your project validates race session and driver inputs before processing them.'
 			},
 			{
 				id: 's2',
-				text: 'Authentication handling — Verify that authentication state is derived from a secure source (e.g., FirebaseAuth, token service) and not from client-controlled flags'
+				text: 'Access control — Verify that the Front Desk, Race Control, and Lap-line Tracker require valid access keys before connecting.',
+				submitterText: 'Your project requires valid access keys for protected employee interfaces.'
 			},
 			{
 				id: 's3',
-				text: 'Authorization checks — Verify that access to chat conversations is restricted based on the authenticated user’s identity'
+				text: 'Mode integrity — Verify that unauthorized clients cannot change race mode or inject flag state updates.',
+				submitterText: 'Your system prevents unauthorized clients from changing race mode or flag status.'
 			},
 			{
 				id: 's4',
-				text: 'Sensitive data protection — No hardcoded secrets or sensitive values in logs; store and handle credentials safely.',
-				submitterText: 'Your code protects sensitive data by avoiding hardcoded secrets and safely handling credentials.'
+				text: 'Secret management — Verify that access keys and sensitive settings are not hardcoded in the frontend code or shown in logs.',
+				submitterText: 'Your code keeps access keys and sensitive settings out of the frontend and logs.'
 			},
 			{
 				id: 's5',
-				text: 'Dependency vulnerabilities — Third-party libraries are maintained and not knowingly risky or unnecessary.',
-				submitterText: 'Your project uses maintained third-party libraries without known vulnerabilities.'
+				text: 'Socket security — Verify that Socket.IO events are only used for real-time updates and not abused for data leakage.',
+				submitterText: 'Your Socket.IO implementation only sends legitimate real-time updates and avoids exposing extra data.'
 			}
 		]
 	},
@@ -53,29 +56,32 @@ export const CATEGORIES: CategoryDef[] = [
 		assignee: 'jane',
 		academyHint: 'cat-correctness',
 		assignmentBlurb:
-			'Does the code do what it is supposed to — requirements, edge cases, validation, data integrity, and plain logic?',
+			'Does the system behave correctly for races, driver assignments, session transitions, and leaderboard updates?',
 		observations: [
 			{
 				id: 'cr1',
-				text: 'Requirement implementation — Verify that sending a message results in it being persisted and displayed in the chat UI.'
+				text: 'Session workflow — Verify the receptionist can create, delete, and update upcoming race sessions correctly.',
+				submitterText: 'Your code allows the receptionist to create, delete, and update upcoming race sessions correctly.'
 			},
 			{
 				id: 'cr2',
-				text: 'Edge case handling — Verify that the system handles empty message lists without errors.'
+				text: 'Driver management — Verify driver names are unique within a session and can be added, edited, and removed before the race starts.',
+				submitterText: 'Your code enforces unique driver names in a session and supports driver management before the race starts.'
 			},
 			{
 				id: 'cr3',
-				text: 'Input validation — Verify that message input prevents invalid values (e.g., empty messages or excessively large payloads).'
+				text: 'Next Race display — Verify the Next Race screen shows the upcoming session, assigned car numbers, and updates when the current race begins.',
+				submitterText: 'Your Next Race screen shows the upcoming session, assigned cars, and moves forward when the race starts.'
 			},
 			{
 				id: 'cr4',
-				text: 'Data integrity — Updates and transactions keep related data consistent without partial or inconsistent states.',
-				submitterText: 'Your code maintains data integrity through consistent updates and transactions.'
+				text: 'Lap tracking — Verify lap button presses update the lap counts and fastest lap times for the corresponding cars.',
+				submitterText: 'Your lap tracking updates the correct lap counts and fastest lap times when buttons are pressed.'
 			},
 			{
 				id: 'cr5',
-				text: 'Logical correctness — Conditions, operators, algorithms, and loops match the intended behaviour.',
-				submitterText: 'Your code\'s logic, including conditions, operators, algorithms, and loops, is correct.'
+				text: 'Race lifecycle — Verify the race transitions to Safe, Hazard, Danger, and Finish correctly, and Finish locks the session state.',
+				submitterText: 'Your race lifecycle transitions correctly and locks the session once the race is finished.'
 			}
 		]
 	},
@@ -85,29 +91,32 @@ export const CATEGORIES: CategoryDef[] = [
 		assignee: 'joe',
 		academyHint: 'cat-performance',
 		assignmentBlurb:
-			'Is the solution efficient enough for real-world load — algorithms, data access, memory, I/O, and obvious reuse?',
+			'Is the real-time system responsive enough for live race updates, timer countdowns, and lap-line tracking?',
 		observations: [
 			{
 				id: 'p1',
-				text: 'Algorithm complexity — Verify that message lookup or user matching logic does not rely on nested iteration over full collections'
+				text: 'Real-time responsiveness — Verify that race mode changes and lap updates appear quickly on spectator and driver displays.',
+				submitterText: 'Your system updates displays quickly when race mode or lap data changes.'
 			},
 			{
 				id: 'p2',
-				text: 'Database query efficiency — Verify that database queries are not executed inside loops when fetching chat messages or user data'
+				text: 'Timer efficiency — Verify the countdown runs at 1 minute in dev mode and 10 minutes in production mode.',
+				submitterText: 'Your countdown timer runs at 1 minute in dev mode and 10 minutes in production mode.'
 			},
 			{
 				id: 'p3',
-				text: 'Memory efficiency — Verify that large message lists are not stored entirely in memory without pagination or streaming'
+				text: 'Lap-line tracker UX — Verify the lap buttons stay large, responsive, and easy to press on tablet layouts.',
+				submitterText: 'Your lap-line tracker UI remains large and responsive across tablet layouts.'
 			},
 			{
 				id: 'p4',
-				text: 'I/O efficiency — Reuse or batch APIs, files, and network calls instead of repeating identical work in tight loops.',
-				submitterText: 'Your I/O operations are efficient, reusing and batching where possible.'
+				text: 'Socket traffic — Verify the app does not use polling and only sends real-time events over Socket.IO for state changes.',
+				submitterText: 'Your app uses Socket.IO for real-time state changes and does not rely on polling.'
 			},
 			{
 				id: 'p5',
-				text: 'Caching usage — Do not recompute or refetch the same expensive result when a small cache or reuse is clearly better.',
-				submitterText: 'Your code uses caching effectively to avoid recomputing expensive results.'
+				text: 'State updates — Verify that updates do not duplicate or overwrite unrelated race data when multiple interfaces are active.',
+				submitterText: 'Your state updates preserve unrelated race data when multiple interfaces are active.'
 			}
 		]
 	},
@@ -117,29 +126,32 @@ export const CATEGORIES: CategoryDef[] = [
 		assignee: 'joe',
 		academyHint: 'cat-structure',
 		assignmentBlurb:
-			'Is the codebase organized so the system stays understandable, scalable, and maintainable as it grows?',
+			'Is the codebase organized so the real-time race system stays understandable, maintainable, and easy to extend?',
 		observations: [
 			{
 				id: 'st1',
-				text: 'Separation of concerns — Verify that UI components do not contain business logic for message handling or user matching'
+				text: 'Separation of concerns — Verify that UI components do not contain server-side race control logic.',
+				submitterText: 'Your UI components do not contain server-side race control logic.'
 			},
 			{
 				id: 'st2',
-				text: 'Module organization — Verify that project structure groups related features logically (e.g., chat, auth, user profiles'
+				text: 'Module organization — Verify that related features are grouped logically by interface and race flow.',
+				submitterText: 'Your project groups related race features logically by interface and flow.'
 			},
 			{
 				id: 'st3',
-				text: 'Dependency management — Verify that core modules (e.g., services, repositories) do not depend on UI components'
+				text: 'Dependency direction — Verify that core services and Socket.IO logic do not depend on UI components.',
+				submitterText: 'Your services and real-time logic do not depend on UI components.'
 			},
 			{
 				id: 'st4',
-				text: 'Layer boundaries — Logic stays in the layer it belongs to, without leaking DB or transport details upward.',
-				submitterText: 'Your code respects layer boundaries, preventing leakage of lower-level details.'
+				text: 'Route structure — Verify that each interface is available at its own top-level route.',
+				submitterText: 'Your interfaces are all accessible at top-level routes.'
 			},
 			{
 				id: 'st5',
-				text: 'Code cohesion — Each module keeps closely related responsibilities instead of unrelated grab-bags.',
-				submitterText: 'Your modules have high cohesion, focusing on related responsibilities.'
+				text: 'Component cohesion — Verify that each interface handles a single persona and avoids mixing unrelated concerns.',
+				submitterText: 'Your interfaces are cohesive and focused on a single persona.'
 			}
 		]
 	}
