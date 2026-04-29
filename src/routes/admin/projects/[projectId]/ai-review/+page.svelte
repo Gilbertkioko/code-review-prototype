@@ -1,9 +1,22 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+
 	let { data } = $props();
 
 	const ai = $derived(data.aiReview);
 	const completedAt = $derived(ai?.completedAt ? new Date(ai.completedAt).toLocaleString() : '—');
 	const linkedAt = $derived(ai?.linkedAt ? new Date(ai.linkedAt).toLocaleString() : '—');
+	const inProgress = $derived(ai?.status === 'queued' || ai?.status === 'running' || ai?.status === 'retrying');
+
+	$effect(() => {
+		if (!browser || !inProgress) return;
+		const t = setInterval(() => {
+			void invalidateAll();
+		}, 7000);
+		return () => clearInterval(t);
+	});
 </script>
 
 <svelte:head>
@@ -58,14 +71,52 @@
 				</div>
 			</div>
 		{/if}
+		{#if data.hasPreviousSuccessfulReview}
+			<form
+				method="post"
+				action="?/reviewAgainFresh"
+				class="mt-4"
+				onsubmit={(e) => {
+					if (!confirm('A successful review already exists for this repository. Run a fresh review anyway?')) {
+						e.preventDefault();
+					}
+				}}
+				use:enhance={() => async ({ update }) => {
+					await update();
+					await invalidateAll();
+				}}
+			>
+				<input type="hidden" name="confirm" value="1" />
+				<button
+					type="submit"
+					class="rounded-md border border-kood-border px-3 py-1.5 text-xs font-semibold text-kood-text hover:bg-kood-surface-raised"
+				>
+					Review again (ignore previous cache)
+				</button>
+			</form>
+		{/if}
 	</header>
 
 	{#if ai?.status === 'failed'}
 		<section class="rounded-xl border border-red-500/50 bg-red-500/10 p-4 text-sm text-red-100">
 			<p class="font-semibold">AI review failed</p>
 			<p class="mt-2 whitespace-pre-wrap break-words">{ai.jobLastError ?? ai.error ?? 'Unknown error'}</p>
+			{#if ai.rawResponse}
+				<details class="mt-3 rounded-md border border-red-300/30 bg-black/10 p-2">
+					<summary class="cursor-pointer text-xs font-semibold">Show full Claude response</summary>
+					<pre class="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed">{ai.rawResponse}</pre>
+				</details>
+			{/if}
 
-			<form method="post" action="?/retryAiReview" class="mt-3">
+			<form
+				method="post"
+				action="?/retryAiReview"
+				class="mt-3"
+				use:enhance={() => async ({ update }) => {
+					await update();
+					await invalidateAll();
+				}}
+			>
 				<button
 					type="submit"
 					class="rounded-md border border-red-400/50 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 hover:bg-red-500/20"

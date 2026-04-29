@@ -3,18 +3,96 @@ import { CATEGORIES } from '$lib/constants';
 import { createFullTestingItems } from '$lib/features/testing/checklist';
 import { and, count, desc, eq, inArray, isNull, lte, or } from 'drizzle-orm';
 import { generateIdFromEntropySize } from 'lucia';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { getDb } from './db';
 import { aiReviewCache, aiReviewJob, projectAiReview } from './db/schema';
 
 export const AI_REVIEW_PROMPT_VERSION = 'v2';
 export const AI_REVIEW_MODEL = 'claude-haiku-4-5-20251001';
+const execFileAsync = promisify(execFile);
+const MAX_REPO_FILES = 80;
+const MAX_FILE_CHARS = 10_000;
+const MAX_TOTAL_CHARS = 220_000;
+const ALLOWED_EXTS = new Set([
+	'.ts',
+	'.tsx',
+	'.js',
+	'.jsx',
+	'.mjs',
+	'.cjs',
+	'.py',
+	'.go',
+	'.rs',
+	'.java',
+	'.kt',
+	'.swift',
+	'.php',
+	'.rb',
+	'.cs',
+	'.cpp',
+	'.c',
+	'.h',
+	'.hpp',
+	'.sql',
+	'.json',
+	'.yaml',
+	'.yml',
+	'.toml',
+	'.md',
+	'.svelte',
+	'.vue',
+	'.html',
+	'.css'
+]);
 
 type AiReviewStatus = 'pending' | 'running' | 'completed' | 'failed';
 type AiJobStatus = 'queued' | 'running' | 'retrying' | 'completed' | 'failed';
 
 function resolveAnthropicApiKey(): string {
 	return (env.ANTHROPIC_API_KEY?.trim() || process.env.ANTHROPIC_API_KEY?.trim() || '').trim();
+}
+
+function tryParseJson<T>(text: string): T | null {
+	try {
+		return JSON.parse(text) as T;
+	} catch {
+		return null;
+	}
+}
+
+function extractFirstJsonObject(text: string): string | null {
+	let start = -1;
+	let depth = 0;
+	let inString = false;
+	let escaping = false;
+	for (let i = 0; i < text.length; i++) {
+		const ch = text[i];
+		if (inString) {
+			if (escaping) escaping = false;
+			else if (ch === '\\') escaping = true;
+			else if (ch === '"') inString = false;
+			continue;
+		}
+		if (ch === '"') {
+			inString = true;
+			continue;
+		}
+		if (ch === '{') {
+			if (start === -1) start = i;
+			depth += 1;
+			continue;
+		}
+		if (ch === '}') {
+			if (depth > 0) depth -= 1;
+			if (depth === 0 && start !== -1) return text.slice(start, i + 1);
+		}
+	}
+	return null;
 }
 
 function formatWorkerError(e: unknown): string {
@@ -78,6 +156,54 @@ export function normalizeRepoUrl(input: string): string {
 	}
 }
 
+async function runGit(args: string[], cwd?: string): Promise<void> {
+	await execFileAsync('git', args, { cwd, timeout: 120_000, maxBuffer: 10 * 1024 * 1024 });
+}
+
+function extensionOf(path: string): string {
+	const idx = path.lastIndexOf('.');
+	return idx >= 0 ? path.slice(idx).toLowerCase() : '';
+}
+
+async function listRepoFiles(root: string, rel = ''): Promise<string[]> {
+	const full = join(root, rel);
+	const entries = await readdir(full, { withFileTypes: true });
+	const out: string[] = [];
+	for (const e of entries) {
+		const childRel = rel ? `${rel}/${e.name}` : e.name;
+		if (e.name === '.git' || e.name === 'node_modules' || e.name === 'dist' || e.name === 'build') continue;
+		if (e.isDirectory()) {
+			out.push(...(await listRepoFiles(root, childRel)));
+		} else if (e.isFile()) {
+			out.push(childRel);
+		}
+	}
+	return out;
+}
+
+async function buildRepoContextText(repoUrl: string): Promise<{ contextText: string; fileCount: number }> {
+	const tmpRoot = await mkdtemp(join(tmpdir(), 'ai-review-repo-'));
+	const worktree = join(tmpRoot, 'repo');
+	try {
+		await runGit(['clone', '--depth', '1', repoUrl, worktree]);
+		const files = await listRepoFiles(worktree);
+		const selected = files.filter((p) => ALLOWED_EXTS.has(extensionOf(p))).slice(0, MAX_REPO_FILES);
+		const chunks: string[] = [];
+		let total = 0;
+		for (const rel of selected) {
+			if (total >= MAX_TOTAL_CHARS) break;
+			const raw = await readFile(join(worktree, rel), 'utf8').catch(() => '');
+			if (!raw) continue;
+			const trimmed = raw.slice(0, MAX_FILE_CHARS);
+			chunks.push(`FILE: ${rel}\n${trimmed}`);
+			total += trimmed.length;
+		}
+		return { contextText: chunks.join('\n\n---\n\n'), fileCount: chunks.length };
+	} finally {
+		await rm(tmpRoot, { recursive: true, force: true });
+	}
+}
+
 type ReviewQuestionsSnapshot = {
 	functional: Array<{ id: string; text: string }>;
 	codeReview: Array<{ id: string; category: string; text: string }>;
@@ -109,9 +235,16 @@ export function computeQuestionsHash(snapshot: ReviewQuestionsSnapshot): string 
 
 function parseAnthropicTextPayload(rawText: string): AiReviewStructuredResult {
 	const trimmed = rawText.trim();
-	const fenced = trimmed.match(/```json\s*([\s\S]*?)\s*```/i);
-	const jsonText = fenced ? fenced[1] : trimmed;
-	const parsed = JSON.parse(jsonText) as AiReviewStructuredResult;
+	const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1]?.trim() ?? null;
+	const direct = tryParseJson<AiReviewStructuredResult>(trimmed);
+	const fromFence = fenced ? tryParseJson<AiReviewStructuredResult>(fenced) : null;
+	const firstObject = extractFirstJsonObject(trimmed);
+	const fromFirstObject = firstObject ? tryParseJson<AiReviewStructuredResult>(firstObject) : null;
+
+	const parsed = direct ?? fromFence ?? fromFirstObject;
+	if (!parsed) {
+		throw new Error(`Could not parse model response as JSON. Full response:\n${trimmed}`);
+	}
 	if (!parsed || typeof parsed !== 'object') throw new Error('AI response JSON root is not an object');
 	if (!Array.isArray(parsed.functional_testing) || !Array.isArray(parsed.code_review)) {
 		throw new Error('AI response JSON does not contain expected sections');
@@ -130,9 +263,11 @@ function parseAnthropicTextPayload(rawText: string): AiReviewStructuredResult {
 
 async function callClaudeForReview(params: {
 	repoUrl: string;
+	repoContextText: string;
+	repoFileCount: number;
 	functionalQuestions: Array<{ id: string; text: string }>;
 	codeReviewQuestions: Array<{ id: string; category: string; text: string }>;
-}): Promise<{ structured: AiReviewStructuredResult; raw: string }> {
+}): Promise<string> {
 	const apiKey = resolveAnthropicApiKey();
 	if (env.AI_REVIEW_WORKER_DEBUG === '1') {
 		console.log('[ai-review] api key present:', Boolean(apiKey));
@@ -147,9 +282,8 @@ async function callClaudeForReview(params: {
 
 	const prompt = [
 		'You are a strict software reviewer.',
-		'Review the repository at the provided URL using the supplied question sets.',
-		'If direct repository access is not possible, clearly state assumptions and limit certainty.',
-		'Respond with valid JSON only (no markdown, no extra text).',
+		'Review the provided repository source files and answer the supplied question sets.',
+		'Respond with valid JSON only (no markdown, no extra text, no code fences).',
 		'JSON schema:',
 		'{',
 		'  "overall_summary": string,',
@@ -161,6 +295,8 @@ async function callClaudeForReview(params: {
 		'Use verdict="accept" only when the criterion is correctly implemented and works.',
 		'Use verdict="decline" when the criterion is missing, incorrect, or not working.',
 		`Repository URL: ${params.repoUrl}`,
+		`Repository files provided: ${params.repoFileCount}`,
+		`Repository source text:\n${params.repoContextText}`,
 		`Functional questions: ${JSON.stringify(params.functionalQuestions)}`,
 		`Code review questions: ${JSON.stringify(params.codeReviewQuestions)}`
 	].join('\n');
@@ -181,7 +317,7 @@ async function callClaudeForReview(params: {
 	});
 	if (!res.ok) {
 		const body = await res.text();
-		throw new Error(`Anthropic API failed (${res.status}): ${body.slice(0, 500)}`);
+		throw new Error(`Anthropic API failed (${res.status}): ${body}`);
 	}
 	const payload = (await res.json()) as {
 		content?: Array<{ type?: string; text?: string }>;
@@ -189,8 +325,7 @@ async function callClaudeForReview(params: {
 	const textBlocks = (payload.content ?? []).filter((b) => b.type === 'text' && typeof b.text === 'string');
 	const rawText = textBlocks.map((b) => b.text ?? '').join('\n').trim();
 	if (!rawText) throw new Error('Anthropic response did not include text content');
-	const structured = parseAnthropicTextPayload(rawText);
-	return { structured, raw: rawText };
+	return rawText;
 }
 
 async function linkReviewToProject(projectId: string, cacheId: string) {
@@ -333,7 +468,7 @@ async function failOrRetryJob(jobId: string, attemptCount: number, maxAttempts: 
 			.set({
 				status: 'failed',
 				lockedAt: null,
-				lastError: errorMessage.slice(0, 2000),
+				lastError: errorMessage,
 				updatedAt: now,
 				finishedAt: now
 			})
@@ -345,14 +480,31 @@ async function failOrRetryJob(jobId: string, attemptCount: number, maxAttempts: 
 		.set({
 			status: 'retrying',
 			lockedAt: null,
-			lastError: errorMessage.slice(0, 2000),
+			lastError: errorMessage,
 			updatedAt: now,
 			nextRunAt: now + nextRetryDelayMs(attemptCount)
 		})
 		.where(eq(aiReviewJob.id, jobId));
 }
 
-export async function enqueueAiReviewForProject(projectId: string, repoUrl: string): Promise<{
+function shouldRetryJob(errorMessage: string): boolean {
+	const m = errorMessage.toLowerCase();
+	if (
+		m.includes('unexpected token') ||
+		m.includes('could not parse model response as json') ||
+		(m.includes('anthropic api failed (400)') && m.includes('invalid_request_error')) ||
+		m.includes('credits are exhausted')
+	) {
+		return false;
+	}
+	return true;
+}
+
+export async function enqueueAiReviewForProject(
+	projectId: string,
+	repoUrl: string,
+	opts?: { forceFresh?: boolean }
+): Promise<{
 	source: 'cache_hit' | 'queued';
 	cacheId?: string;
 	jobId?: string;
@@ -361,10 +513,12 @@ export async function enqueueAiReviewForProject(projectId: string, repoUrl: stri
 	const questionsSnapshot = buildQuestionsSnapshot();
 	const questionsHash = computeQuestionsHash(questionsSnapshot);
 
-	const hit = await latestCompletedCache(repoUrlNormalized, questionsHash);
-	if (hit) {
-		await linkReviewToProject(projectId, hit.id);
-		return { source: 'cache_hit', cacheId: hit.id };
+	if (!opts?.forceFresh) {
+		const hit = await latestCompletedCache(repoUrlNormalized, questionsHash);
+		if (hit) {
+			await linkReviewToProject(projectId, hit.id);
+			return { source: 'cache_hit', cacheId: hit.id };
+		}
 	}
 
 	const now = Date.now();
@@ -399,6 +553,13 @@ export async function enqueueAiReviewForProject(projectId: string, repoUrl: stri
 		finishedAt: null
 	});
 	return { source: 'queued', jobId };
+}
+
+export async function hasCompletedReviewForRepo(repoUrl: string): Promise<boolean> {
+	const repoUrlNormalized = normalizeRepoUrl(repoUrl);
+	const qh = computeQuestionsHash(buildQuestionsSnapshot());
+	const hit = await latestCompletedCache(repoUrlNormalized, qh);
+	return Boolean(hit);
 }
 
 export async function processOneAiReviewJob(): Promise<{ processed: boolean; jobId?: string; status?: string }> {
@@ -453,6 +614,8 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 	const changes = Number((lockRes as { rowsAffected?: number })?.rowsAffected ?? 0);
 	if (changes < 1) return { processed: false };
 
+	let cacheId: string | null = null;
+	let rawModelResponse: string | null = null;
 	try {
 		const hit = await latestCompletedCache(job.repoUrlNormalized, job.questionsHash);
 		if (hit) {
@@ -460,7 +623,7 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 			await completeJob(job.id);
 			return { processed: true, jobId: job.id, status: 'cache_hit' };
 		}
-		const cacheId = generateIdFromEntropySize(16);
+		cacheId = generateIdFromEntropySize(16);
 		await db.insert(aiReviewCache).values({
 			id: cacheId,
 			repoUrlNormalized: job.repoUrlNormalized,
@@ -475,18 +638,24 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 			updatedAt: now,
 			completedAt: null
 		});
-		const review = await callClaudeForReview({
+		// Link immediately so failed runs still appear on the project page with raw response/error details.
+		await linkReviewToProject(job.projectId, cacheId);
+		const repoCtx = await buildRepoContextText(job.repoUrl);
+		rawModelResponse = await callClaudeForReview({
 			repoUrl: job.repoUrl,
+			repoContextText: repoCtx.contextText,
+			repoFileCount: repoCtx.fileCount,
 			functionalQuestions: buildQuestionsSnapshot().functional,
 			codeReviewQuestions: buildQuestionsSnapshot().codeReview
 		});
+		const review = parseAnthropicTextPayload(rawModelResponse);
 		const doneAt = Date.now();
 		await getDb()
 			.update(aiReviewCache)
 			.set({
 				status: 'completed',
-				resultJson: JSON.stringify(review.structured),
-				rawResponse: review.raw,
+				resultJson: JSON.stringify(review),
+				rawResponse: rawModelResponse,
 				error: null,
 				updatedAt: doneAt,
 				completedAt: doneAt
@@ -499,7 +668,25 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 		const message = formatWorkerError(e);
 		const friendly = toAdminFriendlyError(message);
 		console.error('[ai-review-worker] job failed:', { jobId: job.id, error: message });
-		await failOrRetryJob(job.id, job.attemptCount + 1, job.maxAttempts, friendly);
+		if (cacheId) {
+			await getDb()
+				.update(aiReviewCache)
+				.set({
+					status: 'failed',
+					rawResponse: rawModelResponse,
+					error: message,
+					updatedAt: Date.now(),
+					completedAt: null
+				})
+				.where(eq(aiReviewCache.id, cacheId));
+		}
+		const retryable = shouldRetryJob(message);
+		await failOrRetryJob(
+			job.id,
+			retryable ? job.attemptCount + 1 : job.maxAttempts,
+			job.maxAttempts,
+			friendly
+		);
 		return { processed: true, jobId: job.id, status: 'retry_or_failed' };
 	}
 }
@@ -580,13 +767,11 @@ export async function retryLatestAiReviewJobForProject(projectId: string): Promi
 
 let workerLoopStarted = false;
 export function startAiReviewWorkerLoop() {
-	if (workerLoopStarted) return;
+	const g = globalThis as typeof globalThis & { __aiReviewWorkerInterval?: ReturnType<typeof setInterval> };
+	if (workerLoopStarted || g.__aiReviewWorkerInterval) return;
 	if (env.AI_REVIEW_WORKER_DISABLED === '1') return;
 	workerLoopStarted = true;
 	console.log('[ai-review-worker] started');
-	if (env.AI_REVIEW_WORKER_DEBUG === '1') {
-		console.log('[ai-review-worker] started');
-	}
 	const tick = async () => {
 		try {
 			await processOneAiReviewJob();
@@ -595,7 +780,7 @@ export function startAiReviewWorkerLoop() {
 		}
 	};
 	void tick();
-	setInterval(() => {
+	g.__aiReviewWorkerInterval = setInterval(() => {
 		void tick();
 	}, 5000);
 }
