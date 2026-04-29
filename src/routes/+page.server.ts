@@ -1,4 +1,5 @@
 import { lucia } from '$lib/server/auth';
+import { enqueueAiReviewForProject } from '$lib/server/ai-review';
 import {
 	appendCodeReviewMessageLive,
 	appendTestingMessageLive,
@@ -105,6 +106,7 @@ export const actions: Actions = {
 		}
 		const res = await submitProjectRepoUrl(projectId, u.id, url);
 		if (!res.ok) return fail(400, { message: res.error });
+		await enqueueAiReviewForProject(projectId, url);
 		notifyProjectReviewUpdate(projectId);
 		notifyAdminDashboard();
 		throw redirect(303, '/');

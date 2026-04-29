@@ -19,7 +19,14 @@
 		reviewerBUsername: string | null;
 	};
 
-	type AdminProjectSection = 'overview' | 'testing' | 'code-review' | 'standup' | 'feedback' | null;
+	type AdminProjectSection =
+		| 'overview'
+		| 'testing'
+		| 'code-review'
+		| 'ai-review'
+		| 'standup'
+		| 'feedback'
+		| null;
 
 	let {
 		children,
@@ -198,6 +205,12 @@
 														<a
 															href="/admin/projects/{p.id}/code-review"
 															class={subLinkClass(p.id, 'code-review')}>Code review</a
+														>
+													</li>
+													<li>
+														<a
+															href="/admin/projects/{p.id}/ai-review"
+															class={subLinkClass(p.id, 'ai-review')}>AI review</a
 														>
 													</li>
 													<li>
