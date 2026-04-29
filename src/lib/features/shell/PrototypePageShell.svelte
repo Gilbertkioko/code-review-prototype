@@ -237,23 +237,6 @@
 					<CurriculumLeftNav />
 				</div>
 
-				<div class="mt-6 border-t border-kood-border px-4 py-4 lg:px-0">
-					<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Demo</p>
-					{#if auth.sessionUser?.role === 'admin'}
-						<p class="mt-2 text-xs text-kood-muted">Switch persona for sprint + 360° flows</p>
-						<div class="mt-2">
-							<RoleSwitcher />
-						</div>
-					{:else if auth.sessionUser}
-						<p class="mt-2 text-xs text-kood-muted">
-							Your account role is fixed — use <strong class="text-kood-text/90">Save</strong> in the batch card when
-							you want to push Testing and Code review to the server for the team.
-						</p>
-					{:else}
-						<p class="mt-2 text-xs text-kood-muted">Sign in to use the live workspace.</p>
-					{/if}
-				</div>
-
 				<div class="mt-auto space-y-2 border-t border-kood-border px-4 py-4 text-xs text-kood-muted lg:border-0 lg:px-0 lg:pb-0">
 					<p class="flex items-center gap-2"><span>🌙</span> Dark</p>
 					<p class="flex items-center gap-2"><span>☕</span> Gitea</p>

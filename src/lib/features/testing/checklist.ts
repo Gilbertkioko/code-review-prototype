@@ -36,7 +36,7 @@ export function withMandatoryOwners(items: TestingItem[]): TestingItem[] {
 	});
 }
 
-/** Trimmed checklist: 2 mandatory rows per reviewer. */
+/** Trimmed checklist: 3 mandatory rows total. */
 export function createFullTestingItems(): TestingItem[] {
 	const raw = [
 		row(
@@ -53,12 +53,6 @@ export function createFullTestingItems(): TestingItem[] {
 		),
 		row(
 			'm3',
-			'mandatory',
-			'The Next Race display shows the correct upcoming session, driver names, and assigned car numbers, and updates when a race is started.',
-			'The Next Race display shows the correct upcoming session, driver names, and assigned car numbers, and updates when a race is started.'
-		),
-		row(
-			'm4',
 			'mandatory',
 			'The Safety Official can start the race, change mode flags in real time, and the system uses Socket.IO for live updates instead of polling.',
 			'The Safety Official can start the race, change mode flags in real time, and the system uses Socket.IO for live updates instead of polling.'

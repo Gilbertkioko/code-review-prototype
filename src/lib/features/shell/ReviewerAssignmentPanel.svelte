@@ -34,7 +34,7 @@
 			role="status"
 		>
 			<span class="h-2 w-2 shrink-0 rounded-full bg-kood-accent ring-2 ring-kood-accent/30"></span>
-			<span class="text-sm font-semibold text-kood-text">Assignment · Mobile Messenger</span>
+			<span class="text-sm font-semibold text-kood-text">Assignment · Beachside Racetrack</span>
 		</div>
 
 		<div class="space-y-6 p-6">
