@@ -115,6 +115,54 @@ let { data, form } = $props();
 			{/if}
 		</div>
 
+		{#if data.project.status === 'repo_submitted' && !data.pair}
+			<div class="mt-6 border-t border-kood-border/50 pt-4">
+				<p class="text-xs font-medium text-kood-muted">Pair reviewers</p>
+				<form method="post" action="?/assignPair" class="mt-3 space-y-4" use:enhance={() => async ({ update }) => {
+					await update();
+					await invalidateAll();
+				}}>
+					<div class="grid gap-4 md:grid-cols-2">
+						<div>
+							<p class="text-[10px] font-medium uppercase tracking-wide text-kood-muted">Slot A</p>
+							<p class="mt-1 text-xs text-kood-muted">Reviewer A</p>
+							<input type="hidden" name="projectId" value={data.project.id} />
+							<select
+								name="reviewerAId"
+								required
+								class="mt-2 w-full rounded-md border border-kood-border bg-kood-bg px-3 py-2 text-xs text-kood-text"
+							>
+								<option value="" disabled selected>Reviewer…</option>
+								{#each data.reviewers as r (r.id)}
+									<option value={r.id}>{r.username}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<p class="text-[10px] font-medium uppercase tracking-wide text-kood-muted">Slot B</p>
+							<p class="mt-1 text-xs text-kood-muted">Reviewer B</p>
+							<select
+								name="reviewerBId"
+								required
+								class="mt-2 w-full rounded-md border border-kood-border bg-kood-bg px-3 py-2 text-xs text-kood-text"
+							>
+								<option value="" disabled selected>Reviewer…</option>
+								{#each data.reviewers as r (r.id)}
+									<option value={r.id}>{r.username}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+					<button
+						type="submit"
+						class="w-full rounded-lg border border-kood-border bg-kood-text px-4 py-2.5 text-xs font-semibold text-kood-bg transition hover:opacity-90 sm:w-auto"
+					>
+						Create pair & activate review
+					</button>
+				</form>
+			</div>
+		{/if}
+
 		{#if data.pair && data.project.status !== 'completed'}
 			<div class="mt-6 border-t border-kood-border/50 pt-4">
 				<p class="text-xs font-medium text-kood-muted">Reviewer reassignment</p>

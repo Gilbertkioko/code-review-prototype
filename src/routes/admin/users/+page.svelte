@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
 
 	let { data, form } = $props();
 

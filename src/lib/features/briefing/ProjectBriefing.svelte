@@ -51,8 +51,9 @@
 
 <Modal bind:open={startOpen} title="Are you sure you want to start?">
 	<p>
-		This locks in the workflow: project completion, testing, code review sprint, standup, accept project, and 360°
-		feedback — for <strong class="text-kood-text">Mobile Messenger</strong>.
+		Starting the project locks the full journey for this batch. After you click <strong class="text-kood-text">Yes</strong>,
+		you must complete these stages in order:
+		<strong class="text-kood-text">Testing</strong> → <strong class="text-kood-text">Code review sprint</strong> → <strong class="text-kood-text">Standup</strong> → <strong class="text-kood-text">Accept project</strong> → <strong class="text-kood-text">360° feedback</strong>.
 	</p>
 	{#snippet footer()}
 		<button

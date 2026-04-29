@@ -245,10 +245,6 @@
 							<RoleSwitcher />
 						</div>
 					{:else if auth.sessionUser}
-						<p class="mt-2 text-xs text-kood-muted">
-							Your account role is fixed — use <strong class="text-kood-text/90">Save</strong> in the batch card when
-							you want to push Testing and Code review to the server for the team.
-						</p>
 					{:else}
 						<p class="mt-2 text-xs text-kood-muted">Sign in to use the live workspace.</p>
 					{/if}

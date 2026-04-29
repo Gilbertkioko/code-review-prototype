@@ -4,6 +4,7 @@ import {
 	notifyReviewerReassigned
 } from '$lib/server/review-live';
 import {
+	assignReviewPair,
 	adminReassignReviewerSlot,
 	getPairForProject,
 	listUsersForAdmin,
@@ -21,6 +22,33 @@ export const load: PageServerLoad = async ({ parent }) => {
 };
 
 export const actions: Actions = {
+	assignPair: async (event) => {
+		const admin = event.locals.user;
+		if (!admin || admin.role !== 'admin') return fail(403);
+		const fd = await event.request.formData();
+		const projectId = fd.get('projectId');
+		const reviewerAId = fd.get('reviewerAId');
+		const reviewerBId = fd.get('reviewerBId');
+		if (
+			typeof projectId !== 'string' ||
+			typeof reviewerAId !== 'string' ||
+			typeof reviewerBId !== 'string'
+		) {
+			return fail(400, { message: 'Missing fields' });
+		}
+
+		const res = await assignReviewPair({
+			projectId,
+			reviewerAId,
+			reviewerBId,
+			adminId: admin.id
+		});
+		if (!res.ok) return fail(400, { message: res.error });
+
+		notifyProjectReviewUpdate(projectId);
+		notifyAdminDashboard();
+		return { success: true, message: 'Pair created and review activated.' };
+	},
 	reassignReviewer: async (event) => {
 		const admin = event.locals.user;
 		if (!admin || admin.role !== 'admin') return fail(403);
