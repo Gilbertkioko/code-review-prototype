@@ -1,157 +1,120 @@
 <script lang="ts">
 	import Accordion from '$lib/ui/Accordion.svelte';
-	import FunctionalRequirements from './messenger/FunctionalRequirements.svelte';
 </script>
 
 <div class="space-y-3">
-	<Accordion title="The situation 👀">
+	<Accordion title="Racetrack info-screens 🏁">
 		<p>
-			Mobile messengers are essential part of the daily life, allowing to easily stay in touch with family,
-			friends, and colleagues. However, despite messenger apps growing popularity, only a handful of them dominate
-			the market, often lacking the flexibility to meet everyone's specific needs or desired features.
+			Beachside Racetrack is almost ready to open. The asphalt is laid, the reception and paddock are built,
+			and the spectator area is finished. The track is in a very touristic location, which means strong
+			interest from drivers and spectators, but also high pressure on staffing.
 		</p>
 		<p class="mt-3">
-			So you decide to create a Flutter messenger app with functionality and customization you've always wanted.
+			Your job is to build a real-time race management and spectator information system so every role gets the
+			information they need at the right moment.
 		</p>
 	</Accordion>
 
 	<Accordion title="Functional requirements 📌" defaultOpen={true}>
-		<FunctionalRequirements />
+		<p class="font-medium text-kood-text">The MVP must solve the track's biggest operating problems for these personas:</p>
+		<ul class="mt-2 list-disc space-y-2 pl-5">
+			<li><strong>Receptionist</strong> — configure upcoming race sessions, manage drivers, and assign cars.</li>
+			<li><strong>Safety Official</strong> — start the race, control race mode, finish the race, and end the session.</li>
+			<li><strong>Lap-line Observer</strong> — record lap line crossings for each car with large, easy buttons.</li>
+			<li><strong>Race Driver</strong> — view the next race session, assigned car, lap progress, and lap times.</li>
+			<li><strong>Spectator</strong> — see a real-time leaderboard, current race timer, flag status, and fastest laps.</li>
+		</ul>
+		<p class="mt-4 font-semibold text-kood-text">Key requirements:</p>
+		<ul class="mt-2 list-disc space-y-2 pl-5">
+			<li>Configure upcoming race sessions: add/remove sessions, add/remove/edit unique driver names, and assign cars.</li>
+			<li>Start a race and switch race modes: Safe, Hazard, Danger, Finish.</li>
+			<li>Track lap line crossings in real time and update fastest lap times per car.</li>
+			<li>Show spectators the current leaderboard, remaining race time, and current flag status.</li>
+			<li>Keep the previous race results visible until the next session starts.</li>
+		</ul>
 	</Accordion>
 
 	<Accordion title="Expected outcome 🎯">
-		<p class="font-medium text-kood-text">The finished project should have the following:</p>
+		<p class="font-medium text-kood-text">The finished system should include:</p>
 		<ul class="mt-2 list-disc space-y-2 pl-5">
-			<li>User can create an account in the application with email, password and username.</li>
-			<li>Application features a profile page.</li>
-			<li>Application has an organized chat list.</li>
-			<li>User can send and receive chat invites to/from other users.</li>
-			<li>User is able to edit and delete their messages.</li>
-			<li>Sensitive data is encrypted.</li>
+			<li>Node.js server with Socket.IO powering real-time updates.</li>
+			<li>Employee interfaces protected by access keys via environment variables.</li>
+			<li>Routes for each interface: /front-desk, /race-control, /lap-line-tracker, /leaderboard, /next-race, /race-countdown, /race-flags.</li>
+			<li>Full-screen public displays for driver and spectator screens.</li>
+			<li>Race timer that lasts 1 minute in dev mode and 10 minutes in production mode.</li>
+			<li>All data synchronized live without polling.</li>
 		</ul>
 	</Accordion>
 
-	<Accordion title="Extra requirements 📚">
-		<h4 class="font-semibold text-kood-text">Reviewer-Friendly Setup</h4>
-		<p class="mt-2">
-			To simplify the review and testing process, include ready-to-install .apk file so your project can be run
-			without requiring a full Flutter or Android Studio setup. Also the backend should start with a single command,
-			no manual installation of language runtimes, libraries, or additional dependencies should be required (e.g.
-			docker or simple script).
-		</p>
-		<p class="mt-3">The reviewer should be able to interact with the app using the following quick methods:</p>
-		<ul class="mt-2 list-disc space-y-1 pl-5">
-			<li>Install directly on an Android device</li>
-			<li>Use a lightweight emulator (e.g. NoxPlayer, BlueStacks)</li>
-			<li>Browser-based online emulator (e.g. appetize)</li>
+	<Accordion title="Technology requirements 💻">
+		<ul class="mt-2 list-disc space-y-2 pl-5">
+			<li>Server written in Node.js.</li>
+			<li>Socket.IO used for real-time communication between interfaces.</li>
+			<li>Server start command: <code>npm start</code>.</li>
+			<li>Dev mode timer override: <code>npm run dev</code> makes races last 1 minute.</li>
+			<li>No persistence is required for the MVP, but state should be retained if the server is restarted only if extra persistence is implemented.</li>
 		</ul>
-		<p class="mt-3">
-			A short Reviewer Guide section must be provided in the README explaining how to use each option above to open
-			and interact with the app. If the .apk file exceeds Git hosting limits (e.g., &gt;20–50 MB), it should be
-			provided via external storage (e.g. Google Drive, Dropbox, or a GitHub Release).
-		</p>
-		<h4 class="mt-5 font-semibold text-kood-text">Audio chat</h4>
-		<p class="mt-2">
-			Enable users to record messages with the device microphone and send them in the chat. Users should be able
-			to play received audio messages in the chat.
-		</p>
-		<h4 class="mt-5 font-semibold text-kood-text">Push notifications</h4>
-		<p class="mt-2">
-			Implement push notifications for chat messages and user invites. User should be able to mute notifications
-			for any chat.
-		</p>
 	</Accordion>
 
-	<Accordion title="Bonus functionality 🎁">
+	<Accordion title="Interfaces & routes 📍">
+		<p class="font-medium text-kood-text">Each interface must be available from a top-level route:</p>
+		<ul class="mt-2 list-disc space-y-2 pl-5">
+			<li><strong>/front-desk</strong> — Receptionist interface for session and driver management.</li>
+			<li><strong>/race-control</strong> — Safety Official panel for race start, mode control, finish, and end session.</li>
+			<li><strong>/lap-line-tracker</strong> — Lap-line Observer controls with large car-number buttons.</li>
+			<li><strong>/leaderboard</strong> — Guest leader-board showing fastest lap rankings.</li>
+			<li><strong>/next-race</strong> — Driver-facing next race screen with assigned cars.</li>
+			<li><strong>/race-countdown</strong> — Timer display for race drivers and spectators.</li>
+			<li><strong>/race-flags</strong> — Full-screen flag mode display for trackside screens.</li>
+		</ul>
+	</Accordion>
+
+	<Accordion title="Security requirements 🔒">
+		<p class="mt-2">
+			Employee interfaces must request an access key before establishing a real-time connection.
+			Each interface must have its own environment-backed key so only authorized users can control the system.
+		</p>
+		<ul class="mt-3 list-disc space-y-2 pl-5">
+			<li>Server must refuse to start if required access keys are not defined.</li>
+			<li>Incorrect key entry must wait 500ms before responding and show a clear error message.</li>
+			<li>Interfaces must re-prompt after a failed key attempt.</li>
+		</ul>
+	</Accordion>
+
+	<Accordion title="Bonus requirements 🎁">
 		<p>
-			You're welcome to implement other features as you see fit. But anything you implement should not change the
-			default functional behavior of your project.
+			You may implement additional features as long as they do not alter the default MVP behavior.
+			Example bonuses include persistent storage, manual car selection by the receptionist, or a better full-screen display mode.
 		</p>
 		<p class="mt-3">
-			You may use any additional tools, command line arguments, or separate builds to switch your bonus
-			functionality on.
+			If persistence is added, the server should restore the current race state after restart.
 		</p>
 	</Accordion>
 
 	<Accordion title="Useful links 🔗">
 		<ul class="list-disc space-y-2 pl-5">
-			<li>
-				<a class="text-kood-accent underline" href="https://flutter.dev/docs" target="_blank" rel="noreferrer"
-					>Flutter Docs</a
-				>
-			</li>
-			<li>
-				<a class="text-kood-accent underline" href="https://dart.dev/guides" target="_blank" rel="noreferrer"
-					>Dart Docs</a
-				>
-			</li>
-			<li>
-				<a class="text-kood-accent underline" href="https://flutter.dev/widgets" target="_blank" rel="noreferrer"
-					>Flutter widget catalog</a
-				>
-			</li>
-			<li>
-				<a class="text-kood-accent underline" href="https://serverpod.dev" target="_blank" rel="noreferrer"
-					>Backend Development With Serverpod</a
-				>
-			</li>
-			<li>
-				<a
-					class="text-kood-accent underline"
-					href="https://pub.dev/packages/flutter_pw_validator"
-					target="_blank"
-					rel="noreferrer">Password Strength Checker</a
-				>
-			</li>
-			<li>
-				<a
-					class="text-kood-accent underline"
-					href="https://pub.dev/packages/email_validator"
-					target="_blank"
-					rel="noreferrer">Flutter Email Verification</a
-				> (example topic)
-			</li>
-			<li>
-				<a
-					class="text-kood-accent underline"
-					href="https://pub.dev/packages/cryptography"
-					target="_blank"
-					rel="noreferrer">Cryptography in Flutter</a
-				>
-			</li>
+			<li>Socket.IO docs: <a class="text-kood-accent underline" href="https://socket.io/docs" target="_blank" rel="noreferrer">socket.io/docs</a></li>
+			<li>Node.js docs: <a class="text-kood-accent underline" href="https://nodejs.org/en/docs" target="_blank" rel="noreferrer">nodejs.org/en/docs</a></li>
+			<li>Real-time web guide: <a class="text-kood-accent underline" href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API" target="_blank" rel="noreferrer">WebSockets API</a></li>
+			<li>Race management concept: <a class="text-kood-accent underline" href="https://en.wikipedia.org/wiki/Motorsport" target="_blank" rel="noreferrer">Motorsport operations</a></li>
 		</ul>
 	</Accordion>
 
 	<Accordion title="What you'll learn 🧠">
 		<ul class="list-disc space-y-2 pl-5">
-			<li>Building messenger applications with Flutter</li>
-			<li>Working with backend routes and services</li>
-			<li>Persisting state and data</li>
-			<li>Secure storage</li>
-			<li>Real-time indicators</li>
+			<li>Building real-time applications with Socket.IO and Node.js.</li>
+			<li>Designing multiple interfaces for distinct user roles.</li>
+			<li>Implementing route-based public displays and secure employee controls.</li>
+			<li>Managing timed sessions, state changes, and live leaderboard updates.</li>
 		</ul>
 	</Accordion>
 
 	<Accordion title="Deliverables and Review Requirements 📁">
 		<ul class="list-disc space-y-2 pl-5">
-			<li>All source code and configuration files</li>
-			<li>
-				A README file with:
-				<ul class="mt-2 list-disc pl-5">
-					<li>Project overview</li>
-					<li>Setup and installation instructions</li>
-					<li>Usage guide</li>
-					<li>Any additional features or bonus functionality implemented</li>
-				</ul>
-			</li>
-			<li>
-				During the review, be prepared to:
-				<ul class="mt-2 list-disc pl-5">
-					<li>Demonstrate the application on iOS or Android emulator/physical device</li>
-					<li>Explain your code and design choices</li>
-					<li>Discuss any challenges you faced and how you overcame them</li>
-				</ul>
-			</li>
+			<li>All source code and configuration files for the racetrack system.</li>
+			<li>README with setup, environment variables, route descriptions, and a user guide.</li>
+			<li>Instructions on how to open each interface from a public URL or local tunnel.</li>
+			<li>During review, be ready to explain architecture, Socket.IO usage, and any design choices.</li>
 		</ul>
 	</Accordion>
 </div>

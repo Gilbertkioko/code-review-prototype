@@ -33,8 +33,8 @@
 				title="Peers">👥</span
 			>
 		</div>
-		<h1 class="mt-4 text-3xl font-bold tracking-tight text-kood-text">Mobile Messenger 📲</h1>
-		<p class="mt-2 max-w-3xl text-base text-kood-muted">A Flutter messaging app to communicate with anyone.</p>
+		<h1 class="mt-4 text-3xl font-bold tracking-tight text-kood-text">Beachside Racetrack 🏁</h1>
+		<p class="mt-2 max-w-3xl text-base text-kood-muted">A real-time race operations and spectator information system for a new local racetrack.</p>
 	</header>
 
 	<MobileMessengerBrief />
@@ -52,7 +52,7 @@
 <Modal bind:open={startOpen} title="Are you sure you want to start?">
 	<p>
 		This locks in the workflow: project completion, testing, code review sprint, standup, accept project, and 360°
-		feedback — for <strong class="text-kood-text">Mobile Messenger</strong>.
+		feedback — for <strong class="text-kood-text">Beachside Racetrack</strong>.
 	</p>
 	{#snippet footer()}
 		<button

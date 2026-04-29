@@ -139,7 +139,7 @@
 </script>
 
 <svelte:head>
-	<title>Mobile Messenger — //kood prototype</title>
+	<title>Beachside Racetrack — //kood prototype</title>
 </svelte:head>
 
 <PrototypePageShell>
