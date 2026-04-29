@@ -12,6 +12,7 @@ import {
 	codeReviewThreadMessage,
 	project,
 	testingItemProgress,
+	testingVerdictEvent,
 	testingThreadMessage
 } from './db/schema';
 import { parseCodeReviewSavePayload } from './code-review-payload';
@@ -367,6 +368,7 @@ export async function setTestingVerdictLive(params: {
 	const joe = (existing?.joeVerdict ?? 'pending') as string;
 	const nextJane = persona === 'jane' ? verdict : jane;
 	const nextJoe = persona === 'joe' ? verdict : joe;
+	const changed = (persona === 'jane' ? jane : joe) !== verdict;
 	const tr =
 		existing?.testingRound != null
 			? Math.max(existing.testingRound, testingRound >= 1 ? testingRound : 1)
@@ -394,6 +396,18 @@ export async function setTestingVerdictLive(params: {
 			joeVerdict: nextJoe,
 			testingRound: tr,
 			updatedAt: now
+		});
+	}
+	if (changed) {
+		await db.insert(testingVerdictEvent).values({
+			id: generateIdFromEntropySize(16),
+			projectId,
+			itemId,
+			persona,
+			verdict,
+			testingRound: tr,
+			changedAt: now,
+			changedByUserId: userId
 		});
 	}
 	await refreshProjectReviewSnapshotsFromRelational(projectId);

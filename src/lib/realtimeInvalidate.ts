@@ -13,7 +13,9 @@ export function scheduleDebouncedInvalidateAll(source: string) {
 	debounceTimer = setTimeout(() => {
 		debounceTimer = undefined;
 		realtimeClientLog('invalidateAll()', { source: `${source} (debounced)` });
-		void invalidateAll();
+		void invalidateAll().catch(() => {
+			// Invalidation can race during HMR/navigation; we don't want to crash the UI.
+		});
 	}, SOCKET_DEBOUNCE_MS);
 }
 

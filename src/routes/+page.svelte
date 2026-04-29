@@ -10,6 +10,7 @@
 		importTestingStateFromServer,
 		reviewerNeedsAssignmentGate,
 		setCategoryAssigneeOverride,
+		setReviewerAssignmentAcceptedFromServer,
 		setRole,
 		setWorkspaceDisplayNames,
 		syncLiveReviewWorkspaceFromServer
@@ -88,6 +89,7 @@ let hadReviewerProject = $state(false);
 		if (r === 'reviewer' && w.kind === 'reviewer') {
 			if (w.persona === 'jane' || w.persona === 'joe') setRole(w.persona);
 			else setRole('jane');
+			setReviewerAssignmentAcceptedFromServer(w.reviewerCheckin ?? null);
 			setCategoryAssigneeOverride(w.categoryMap ?? null);
 			return () => setCategoryAssigneeOverride(null);
 		}
@@ -166,6 +168,8 @@ let hadReviewerProject = $state(false);
 			<ProjectBriefing />
 		{:else if reviewerGate && data.workspace.kind === 'reviewer' && data.workspace.pair}
 			<ReviewerAssignmentPanel />
+		{:else if data.workspace.kind === 'reviewer' && data.workspace.pair}
+			<TestingView />
 		{:else}
 			<p class="text-sm text-kood-muted">Loading workspace…</p>
 		{/if}

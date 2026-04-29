@@ -238,5 +238,37 @@ let { data, form } = $props();
 				</div>
 			</div>
 		{/if}
+
+		{#if data.pair && data.project.status === 'review_active'}
+			<div class="mt-6 border-t border-kood-border/50 pt-4">
+				<p class="text-xs font-medium text-kood-muted">Reset cycle</p>
+				<form
+					method="post"
+					action="?/resetReviewCycle"
+					class="mt-3"
+					use:enhance={() => async ({ update }) => {
+						await update();
+						await invalidateAll();
+					}}
+				>
+					<input type="hidden" name="projectId" value={data.project.id} />
+					<button
+						type="submit"
+						class="rounded-md border border-kood-border bg-kood-bg px-3 py-1.5 text-xs font-medium text-kood-text hover:bg-kood-surface-raised"
+						onclick={(e) => {
+							if (
+								!confirm(
+									'Reset testing + code-review progress for this project? Reviewers will need to check in and accept again.'
+								)
+							) {
+								e.preventDefault();
+							}
+						}}
+					>
+						Reset Testing &amp; Code review
+					</button>
+				</form>
+			</div>
+		{/if}
 	</header>
 </div>

@@ -17,6 +17,7 @@ import {
 	getPairForProject,
 	getProjectById,
 	listCodeReviewThreadMessagesForProject,
+	listTestingVerdictEventsForProject,
 	listTestingItemProgressForProject,
 	listTestingThreadMessagesForProject,
 	reviewRoomDisplayLabels,
@@ -62,6 +63,7 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 	const tm = await listTestingThreadMessagesForProject(params.projectId);
 	const cm = await listCodeReviewThreadMessagesForProject(params.projectId);
 	const testingProgressRows = await listTestingItemProgressForProject(params.projectId);
+	const testingVerdictEvents = await listTestingVerdictEventsForProject(params.projectId);
 
 	const room = pair
 		? await reviewRoomDisplayLabels(projectRow.submitterId, pair)
@@ -114,7 +116,8 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 
 	const testingChecklistAdminSummary = buildAdminTestingSummary(
 		projectRow.testingJson ?? null,
-		testingProgressRows
+		testingProgressRows,
+		testingVerdictEvents
 	);
 
 	const projectDisplayTitle = adminProjectDisplayTitle(

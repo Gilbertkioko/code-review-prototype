@@ -15,6 +15,8 @@ import {
 	ensureActiveProjectForSubmitter,
 	getPairForProject,
 	getProjectById,
+	listReviewerCheckinsForProject,
+	markReviewerCheckin,
 	getReviewerPairRow,
 	markProjectCompleted,
 	parseCodeReviewSavePayload,
@@ -38,6 +40,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		await recomputeAndPersistSubmissionProgress(projectRow.id);
 		projectRow = (await getProjectById(projectRow.id)) ?? projectRow;
 		const pair = await getPairForProject(projectRow.id);
+		const checkins = await listReviewerCheckinsForProject(projectRow.id);
+		const reviewerCheckin = {
+			jane: checkins.some((x) => x.persona === 'jane'),
+			joe: checkins.some((x) => x.persona === 'joe')
+		};
 		const categoryMap = pair ? categoryAssigneeMapFromPair(pair) : null;
 		const canMarkComplete = projectRow.submitterId === u.id;
 		const reviewRoom = pair ? await reviewRoomDisplayLabels(projectRow.submitterId, pair) : null;
@@ -47,6 +54,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				viewerId: u.id,
 				project: projectRow,
 				pair,
+				reviewerCheckin,
 				categoryMap,
 				reviewRoom,
 				canMarkComplete
@@ -61,6 +69,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			projectRow = (await getProjectById(projectRow.id)) ?? projectRow;
 		}
 		const categoryMap = pair ? categoryAssigneeMapFromPair(pair) : null;
+		const checkins = pair && projectRow ? await listReviewerCheckinsForProject(projectRow.id) : [];
+		const reviewerCheckin = {
+			jane: checkins.some((x) => x.persona === 'jane'),
+			joe: checkins.some((x) => x.persona === 'joe')
+		};
 		const persona =
 			pair && projectRow ? reviewPersonaForUser(pair, u.id, projectRow.submitterId) : null;
 		const reviewRoom =
@@ -71,6 +84,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				viewerId: u.id,
 				project: projectRow,
 				pair,
+				reviewerCheckin,
 				categoryMap,
 				persona,
 				reviewRoom,
@@ -117,6 +131,19 @@ export const actions: Actions = {
 		notifyProjectReviewUpdate(res.projectId);
 		notifyAdminDashboard();
 		throw redirect(303, '/');
+	},
+	acceptReviewerAssignment: async (event) => {
+		const u = event.locals.user;
+		if (!u || u.role !== 'reviewer') return fail(403);
+		const fd = await event.request.formData();
+		const projectId = fd.get('projectId');
+		const persona = fd.get('persona');
+		if (typeof projectId !== 'string' || (persona !== 'jane' && persona !== 'joe')) return fail(400);
+		if (!(await canAccessProject(u.id, u.role, projectId))) return fail(403);
+		const res = await markReviewerCheckin({ projectId, reviewerUserId: u.id, persona });
+		if (!res.ok) return fail(400, { message: res.error });
+		notifyProjectReviewUpdate(projectId);
+		return { success: true };
 	},
 	saveReviewState: async (event) => {
 		const u = event.locals.user;

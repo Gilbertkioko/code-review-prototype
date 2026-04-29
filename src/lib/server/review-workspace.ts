@@ -11,9 +11,11 @@ import {
 	codeReviewThreadMessage,
 	project,
 	projectComment,
+	reviewerCheckin,
 	reviewPair,
 	session,
 	testingItemProgress,
+	testingVerdictEvent,
 	testingThreadMessage,
 	user,
 	type ReviewPairRow
@@ -378,6 +380,67 @@ export async function markProjectCompleted(projectId: string) {
 		.where(eq(project.id, projectId));
 }
 
+/** Admin: clear Testing + Code review saved progress/messages to restart the cycle. */
+export async function adminResetReviewCycle(projectId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+	const db = getDb();
+	const p = await getProjectById(projectId);
+	if (!p) return { ok: false, error: 'Project not found' };
+	if (p.status === 'completed') return { ok: false, error: 'Completed projects cannot be reset' };
+
+	const now = Date.now();
+
+	await db.transaction(async (tx) => {
+		await tx.delete(reviewerCheckin).where(eq(reviewerCheckin.projectId, projectId));
+		await tx.delete(testingThreadMessage).where(eq(testingThreadMessage.projectId, projectId));
+		await tx.delete(testingItemProgress).where(eq(testingItemProgress.projectId, projectId));
+		await tx.delete(testingVerdictEvent).where(eq(testingVerdictEvent.projectId, projectId));
+		await tx.delete(codeReviewThreadMessage).where(eq(codeReviewThreadMessage.projectId, projectId));
+		await tx.delete(codeReviewObservationProgress).where(eq(codeReviewObservationProgress.projectId, projectId));
+
+		await tx
+			.update(project)
+			.set({
+				testingJson: null,
+				codeReviewJson: null,
+				submissionProgress: 'testing',
+				updatedAt: now
+			})
+			.where(eq(project.id, projectId));
+	});
+
+	return { ok: true };
+}
+
+export async function markReviewerCheckin(params: {
+	projectId: string;
+	reviewerUserId: string;
+	persona: 'jane' | 'joe';
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+	const { projectId, reviewerUserId, persona } = params;
+	const p = await getProjectById(projectId);
+	const pair = await getPairForProject(projectId);
+	if (!p || !pair) return { ok: false, error: 'Project pairing not found' };
+	if (persona === 'jane' && pair.reviewerAId !== reviewerUserId) return { ok: false, error: 'Forbidden' };
+	if (persona === 'joe' && pair.reviewerBId !== reviewerUserId) return { ok: false, error: 'Forbidden' };
+	const now = Date.now();
+	await getDb()
+		.insert(reviewerCheckin)
+		.values({ projectId, reviewerUserId, persona, acceptedAt: now, updatedAt: now })
+		.onConflictDoUpdate({
+			target: [reviewerCheckin.projectId, reviewerCheckin.reviewerUserId],
+			set: { persona, acceptedAt: now, updatedAt: now }
+		});
+	return { ok: true };
+}
+
+export async function listReviewerCheckinsForProject(projectId: string) {
+	return await getDb()
+		.select()
+		.from(reviewerCheckin)
+		.where(eq(reviewerCheckin.projectId, projectId))
+		.orderBy(asc(reviewerCheckin.acceptedAt));
+}
+
 /** Persists prototype Testing + Code review sprint state (threads, verdicts, rounds). */
 export async function saveProjectReviewWorkspace(projectId: string, testingJson: string, codeReviewJson: string) {
 	const now = Date.now();
@@ -499,6 +562,14 @@ export async function listTestingThreadMessagesForProject(projectId: string) {
 		.from(testingThreadMessage)
 		.where(eq(testingThreadMessage.projectId, projectId))
 		.orderBy(asc(testingThreadMessage.postedAt), asc(testingThreadMessage.id));
+}
+
+export async function listTestingVerdictEventsForProject(projectId: string) {
+	return await getDb()
+		.select()
+		.from(testingVerdictEvent)
+		.where(eq(testingVerdictEvent.projectId, projectId))
+		.orderBy(asc(testingVerdictEvent.changedAt), asc(testingVerdictEvent.id));
 }
 
 export async function listCodeReviewObservationProgressForProject(projectId: string) {

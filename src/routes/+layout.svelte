@@ -53,7 +53,9 @@
 
 		const bumpImmediate = (source: string) => {
 			realtimeClientLog('invalidateAll()', { source });
-			void invalidateAll();
+			void invalidateAll().catch(() => {
+				// Invalidation can race during navigation/HMR; ignore failures.
+			});
 		};
 		const bumpFromSocket = (source: string) => {
 			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });

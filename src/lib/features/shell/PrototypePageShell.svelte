@@ -238,7 +238,6 @@
 				</div>
 
 				<div class="mt-6 border-t border-kood-border px-4 py-4 lg:px-0">
-					<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Demo</p>
 					{#if auth.sessionUser?.role === 'admin'}
 						<p class="mt-2 text-xs text-kood-muted">Switch persona for sprint + 360° flows</p>
 						<div class="mt-2">

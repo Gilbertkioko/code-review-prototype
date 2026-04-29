@@ -126,6 +126,15 @@
 						</span>
 					</div>
 					<p class="mt-1 text-xs text-kood-muted">{r.summary}</p>
+					<p class="mt-1 text-[11px] text-kood-muted/90">
+						{#if r.mandatoryOwner === 'jane'}
+							Declined before accept ({reviewerAColumn}): {r.janeDeclinesBeforeAccept}
+						{:else if r.mandatoryOwner === 'joe'}
+							Declined before accept ({reviewerBColumn}): {r.joeDeclinesBeforeAccept}
+						{:else}
+							Declines: {reviewerAColumn} {r.janeDeclines}, {reviewerBColumn} {r.joeDeclines}
+						{/if}
+					</p>
 				</summary>
 				<div class="border-t border-kood-border/50 px-3 py-3">
 					<AdminThreadConversationFeed

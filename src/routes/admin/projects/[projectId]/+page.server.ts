@@ -5,6 +5,7 @@ import {
 } from '$lib/server/review-live';
 import {
 	assignReviewPair,
+	adminResetReviewCycle,
 	adminReassignReviewerSlot,
 	getPairForProject,
 	listUsersForAdmin,
@@ -48,6 +49,21 @@ export const actions: Actions = {
 		notifyProjectReviewUpdate(projectId);
 		notifyAdminDashboard();
 		return { success: true, message: 'Pair created and review activated.' };
+	},
+	resetReviewCycle: async (event) => {
+		const admin = event.locals.user;
+		if (!admin || admin.role !== 'admin') return fail(403);
+		const fd = await event.request.formData();
+		const projectId = fd.get('projectId');
+		if (typeof projectId !== 'string') return fail(400, { message: 'Missing projectId' });
+
+		const res = await adminResetReviewCycle(projectId);
+		if (!res.ok) return fail(400, { message: res.error });
+
+		notifyProjectReviewUpdate(projectId);
+		notifyAdminDashboard();
+
+		return { success: true, message: 'Project reset — start testing again and accept your assignments.' };
 	},
 	reassignReviewer: async (event) => {
 		const admin = event.locals.user;
