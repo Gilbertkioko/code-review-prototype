@@ -120,33 +120,47 @@
 		</section>
 	{/if}
 
-	<section
-		class="rounded-lg border border-kood-border bg-kood-surface p-4"
-		aria-label="Mandatory checklist progress"
-	>
-		<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Team · mandatory completion</p>
-		<p class="mt-1 text-sm text-kood-text">
-			<strong class="text-kood-text">{mandatoryOwnedResolvedCount()}</strong>
-			<span class="text-kood-muted"> / {mandatoryList.length}</span>
-			<span class="text-kood-muted"> rows with a verdict (accepted or declined)</span>
-		</p>
+	<details class="group rounded-lg border border-kood-border bg-kood-surface" aria-label="Mandatory checklist progress">
+		<summary
+			class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wide text-kood-muted marker:content-none [&::-webkit-details-marker]:hidden"
+		>
+			<span>Team · mandatory completion</span>
+			<svg
+				class="size-4 shrink-0 text-kood-muted transition-transform duration-200 ease-out group-open:rotate-180"
+				viewBox="0 0 20 20"
+				fill="currentColor"
+				aria-hidden="true"
+			>
+				<path
+					fill-rule="evenodd"
+					d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+					clip-rule="evenodd"
+				/>
+			</svg>
+		</summary>
+		<div class="border-t border-kood-border/60 px-4 py-4">
+			<p class="text-sm text-kood-text">
+				<strong class="text-kood-text">{mandatoryOwnedResolvedCount()}</strong>
+				<span class="text-kood-muted"> / {mandatoryList.length}</span>
+				<span class="text-kood-muted"> rows with a verdict (accepted or declined)</span>
+			</p>
 
-		<p class="mt-3 text-[11px] text-kood-muted">
-			<span class="inline-flex items-center gap-1">
-				<span class="inline-block size-2 rounded-sm bg-kood-accent/55 ring-1 ring-kood-accent/50"></span>
-				Accepted
-			</span>
-			<span class="ml-3 inline-flex items-center gap-1">
-				<span class="inline-block size-2 rounded-sm bg-red-500/50 ring-1 ring-red-400/45"></span>
-				Declined
-			</span>
-			<span class="ml-3 inline-flex items-center gap-1">
-				<span class="inline-block size-2 rounded-sm bg-kood-bg ring-1 ring-kood-border/60"></span>
-				Pending
-			</span>
-		</p>
+			<p class="mt-3 text-[11px] text-kood-muted">
+				<span class="inline-flex items-center gap-1">
+					<span class="inline-block size-2 rounded-sm bg-kood-accent/55 ring-1 ring-kood-accent/50"></span>
+					Accepted
+				</span>
+				<span class="ml-3 inline-flex items-center gap-1">
+					<span class="inline-block size-2 rounded-sm bg-red-500/50 ring-1 ring-red-400/45"></span>
+					Declined
+				</span>
+				<span class="ml-3 inline-flex items-center gap-1">
+					<span class="inline-block size-2 rounded-sm bg-kood-bg ring-1 ring-kood-border/60"></span>
+					Pending
+				</span>
+			</p>
 
-		<div class="mt-4 grid gap-4 sm:grid-cols-2">
+			<div class="mt-4 grid gap-4 sm:grid-cols-2">
 			<div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="font-medium text-kood-text">{janeBucketHeader}</span>
@@ -187,13 +201,14 @@
 					></div>
 				</div>
 			</div>
-		</div>
+			</div>
 
-		<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
-			The bars above reflect <strong class="text-kood-text/80">every</strong> mandatory row in each bucket — you can’t
-			finish the phase until each owned row is accepted.
-		</p>
-	</section>
+			<p class="mt-4 text-[11px] leading-relaxed text-kood-muted">
+				The bars above reflect <strong class="text-kood-text/80">every</strong> mandatory row in each bucket — you can’t
+				finish the phase until each owned row is accepted.
+			</p>
+		</div>
+	</details>
 
 	<div class="flex flex-wrap justify-end gap-2">
 		<button

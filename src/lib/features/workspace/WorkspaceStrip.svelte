@@ -93,10 +93,7 @@
 				this batch.
 			</p>
 		{:else if submitter.project.status === 'repo_submitted'}
-			<p class="mt-3 text-xs text-kood-muted">
-				<strong class="text-kood-text/90">Awaiting reviewers.</strong> An admin will assign two reviewers to this repo.
-				Then use <strong class="text-kood-text/90">Save</strong> below once you have threads to share.
-			</p>
+			<!-- no extra copy -->
 		{:else if submitter.project.status === 'review_active'}
 			<p class="mt-2 text-xs text-kood-muted">Review is active — continue the sprint in the main workspace and project room.</p>
 		{/if}

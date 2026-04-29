@@ -12,6 +12,7 @@ import {
 	codeReviewThreadMessage,
 	project,
 	testingItemProgress,
+	testingVerdictEvent,
 	testingThreadMessage
 } from './db/schema';
 import { parseCodeReviewSavePayload } from './code-review-payload';
@@ -72,6 +73,19 @@ export function notifyAdminDashboard() {
 	console.info('[realtime-server] notifyAdminDashboard');
 	broadcastToRole('admin', 'workspace:invalidate', {});
 	ssePublishRole('admin', 'workspace', {});
+}
+
+/** Notify a reviewer they were removed from a project pair and should leave review UI. */
+export function notifyReviewerReassigned(params: {
+	reviewerUserId: string;
+	projectId: string;
+	reason: string;
+}) {
+	const { reviewerUserId, projectId, reason } = params;
+	console.info('[realtime-server] notifyReviewerReassigned', reviewerUserId.slice(0, 8) + '…', projectId.slice(0, 8) + '…');
+	broadcastToUser(reviewerUserId, 'reviewer:reassigned', { projectId, reason });
+	broadcastToUser(reviewerUserId, 'workspace:invalidate', { projectId });
+	ssePublishUser(reviewerUserId, 'workspace', { projectId });
 }
 
 async function testingMandatoryAllAccepted(projectId: string): Promise<boolean> {
@@ -354,6 +368,7 @@ export async function setTestingVerdictLive(params: {
 	const joe = (existing?.joeVerdict ?? 'pending') as string;
 	const nextJane = persona === 'jane' ? verdict : jane;
 	const nextJoe = persona === 'joe' ? verdict : joe;
+	const changed = (persona === 'jane' ? jane : joe) !== verdict;
 	const tr =
 		existing?.testingRound != null
 			? Math.max(existing.testingRound, testingRound >= 1 ? testingRound : 1)
@@ -381,6 +396,18 @@ export async function setTestingVerdictLive(params: {
 			joeVerdict: nextJoe,
 			testingRound: tr,
 			updatedAt: now
+		});
+	}
+	if (changed) {
+		await db.insert(testingVerdictEvent).values({
+			id: generateIdFromEntropySize(16),
+			projectId,
+			itemId,
+			persona,
+			verdict,
+			testingRound: tr,
+			changedAt: now,
+			changedByUserId: userId
 		});
 	}
 	await refreshProjectReviewSnapshotsFromRelational(projectId);

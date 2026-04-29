@@ -21,9 +21,9 @@
 
 	const canContinue = $derived(agreed);
 
-	function onConfirm() {
+	async function onConfirm() {
 		if (!canContinue) return;
-		acceptReviewerAssignment(role);
+		await acceptReviewerAssignment(role);
 	}
 </script>
 

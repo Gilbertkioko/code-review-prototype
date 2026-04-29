@@ -513,18 +513,69 @@ export function getPersonaDisplayLabel(persona: 'sandra' | 'jane' | 'joe'): stri
 	return 'Sandra';
 }
 
+// Used to ensure admin "reset cycle" is applied only once per cleared snapshot.
+let lastAppliedResetFingerprint: string | null = null;
+
 /** Server has paired reviewers on an active project — skip prototype briefing / assignment gates. */
 export function syncLiveReviewWorkspaceFromServer(workspace: {
 	kind: string;
-	project: { status: string } | null;
+	project: {
+		id?: string;
+		updatedAt?: number;
+		status: string;
+		testingJson?: unknown;
+		codeReviewJson?: unknown;
+	} | null;
 	pair: { projectId: string } | null;
 }) {
 	if (workspace.kind !== 'submitter' && workspace.kind !== 'reviewer') return;
 	if (!workspace.pair || !workspace.project) return;
 	if (workspace.project.status !== 'review_active') return;
+	const projectId = workspace.pair.projectId;
+	const proj: {
+		id?: string;
+		updatedAt?: number;
+		status: string;
+		testingJson?: unknown;
+		codeReviewJson?: unknown;
+	} = workspace.project;
+	const testingJson = proj.testingJson ?? null;
+	const codeReviewJson = proj.codeReviewJson ?? null;
+	const resetFingerprint = `${projectId}:${String(testingJson)}:${String(codeReviewJson)}`;
+	const isResetCycle =
+		testingJson == null && codeReviewJson == null;
+
+	// Prevent repeatedly applying the same admin reset on every live sync tick.
+	// (Which otherwise spams toasts and can cascade invalidations.)
+	if (isResetCycle) {
+		if (lastAppliedResetFingerprint === resetFingerprint) return;
+		lastAppliedResetFingerprint = resetFingerprint;
+	}
+
+	if (isResetCycle) {
+		// Admin cleared saved testing + code-review snapshots for a fresh cycle.
+		// Reset client runtime state so reviewers must check in and accept again.
+		data.projectStarted = true;
+		data.submittedForReview = true;
+		data.reviewerAssignmentAccepted = { jane: false, joe: false };
+		data.phase = 'briefing';
+		data.testingRound = 1;
+		data.testingItems = createFullTestingItems();
+		data.categorySessions = initialCategorySessions();
+		data.codeReviewRound = 1;
+		data.standupItems = [false, false, false, false, false] as boolean[];
+		data.standupWhen = '';
+		data.standupVoiceChannel = '';
+		data.standupTakeaways = '';
+		data.standupTakeawayMessages = [];
+		data.sandraRatings = defaultSandraRatings();
+		data.reviewerRatings = defaultReviewerRatings();
+		pushToast('New review cycle started — start testing and accept your assignment.');
+		return;
+	}
+
 	data.projectStarted = true;
 	data.submittedForReview = true;
-	data.reviewerAssignmentAccepted = { jane: true, joe: true };
 	if (data.phase === 'briefing' || data.phase === 'project_completion') {
 		data.phase = 'testing';
 	}
@@ -553,6 +604,11 @@ export function setRole(role: Role) {
 	data.role = role;
 }
 
+export function setReviewerAssignmentAcceptedFromServer(next: { jane: boolean; joe: boolean } | null) {
+	if (!next) return;
+	data.reviewerAssignmentAccepted = { jane: Boolean(next.jane), joe: Boolean(next.joe) };
+}
+
 export function confirmStartProject() {
 	data.projectStarted = true;
 	data.phase = 'project_completion';
@@ -560,7 +616,14 @@ export function confirmStartProject() {
 	pushToast('Project started — complete the brief, then add your repo URL in Your project batch when ready.');
 }
 
-export function acceptReviewerAssignment(reviewer: 'jane' | 'joe') {
+export async function acceptReviewerAssignment(reviewer: 'jane' | 'joe') {
+	const res = await postFormReviewAction('acceptReviewerAssignment', {
+		persona: reviewer
+	});
+	if (!res.ok) {
+		pushToast('Could not save assignment acceptance. Please try again.');
+		return;
+	}
 	data.reviewerAssignmentAccepted[reviewer] = true;
 	pushToast(`${getPersonaDisplayLabel(reviewer)}: assignment accepted — you can review.`);
 }
