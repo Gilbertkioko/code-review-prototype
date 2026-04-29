@@ -11,6 +11,13 @@ type ProgressRow = {
 	testingRound: number;
 };
 
+type VerdictEventRow = {
+	itemId: string;
+	persona: string;
+	verdict: string;
+	changedAt: number;
+};
+
 export type AdminTestingOutcome = 'pass' | 'fail' | 'pending';
 
 export type AdminTestingRowSummary = {
@@ -21,6 +28,10 @@ export type AdminTestingRowSummary = {
 	mandatoryOwner: 'jane' | 'joe' | null;
 	jane: TestingDecision;
 	joe: TestingDecision;
+	janeDeclines: number;
+	joeDeclines: number;
+	janeDeclinesBeforeAccept: number;
+	joeDeclinesBeforeAccept: number;
 	outcome: AdminTestingOutcome;
 };
 
@@ -107,7 +118,8 @@ function snippet(text: string, n: number): string {
 /** Merge saved JSON with optional DB progress rows, then compute admin-facing checklist stats. */
 export function buildAdminTestingSummary(
 	testingJson: string | null,
-	progressRows: ProgressRow[]
+	progressRows: ProgressRow[],
+	verdictEvents: VerdictEventRow[] = []
 ): AdminTestingSummary {
 	const fromJson = mergeTestingFromJson(testingJson);
 	let items = fromJson.items;
@@ -118,16 +130,33 @@ export function buildAdminTestingSummary(
 		if (Number.isFinite(maxR) && maxR >= 1) round = maxR;
 	}
 
-	const rows: AdminTestingRowSummary[] = items.map((t, order) => ({
-		order,
-		itemId: t.id,
-		section: t.section,
-		summary: snippet(t.text, 96),
-		mandatoryOwner: t.mandatoryOwner ?? null,
-		jane: t.jane,
-		joe: t.joe,
-		outcome: rowOutcome(t)
-	}));
+	const rows: AdminTestingRowSummary[] = items.map((t, order) => {
+		const itemEvents = verdictEvents
+			.filter((e) => e.itemId === t.id)
+			.sort((a, b) => a.changedAt - b.changedAt);
+		const byPersona = (p: 'jane' | 'joe') => itemEvents.filter((e) => e.persona === p);
+		const declines = (p: 'jane' | 'joe') => byPersona(p).filter((e) => e.verdict === 'decline').length;
+		const declinesBeforeAccept = (p: 'jane' | 'joe') => {
+			const list = byPersona(p);
+			const firstAccept = list.findIndex((e) => e.verdict === 'accept');
+			const window = firstAccept >= 0 ? list.slice(0, firstAccept) : list;
+			return window.filter((e) => e.verdict === 'decline').length;
+		};
+		return {
+			order,
+			itemId: t.id,
+			section: t.section,
+			summary: snippet(t.text, 96),
+			mandatoryOwner: t.mandatoryOwner ?? null,
+			jane: t.jane,
+			joe: t.joe,
+			janeDeclines: declines('jane'),
+			joeDeclines: declines('joe'),
+			janeDeclinesBeforeAccept: declinesBeforeAccept('jane'),
+			joeDeclinesBeforeAccept: declinesBeforeAccept('joe'),
+			outcome: rowOutcome(t)
+		};
+	});
 
 	const mandRows = rows.filter((r) => r.section === 'mandatory');
 	const extraRows = rows.filter((r) => r.section === 'extra');

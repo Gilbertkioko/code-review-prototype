@@ -10,6 +10,7 @@
 		importTestingStateFromServer,
 		reviewerNeedsAssignmentGate,
 		setCategoryAssigneeOverride,
+		setReviewerAssignmentAcceptedFromServer,
 		setRole,
 		setWorkspaceDisplayNames,
 		syncLiveReviewWorkspaceFromServer
@@ -43,6 +44,7 @@
 	);
 
 	let syncedRoomKey = $state('');
+let hadReviewerProject = $state(false);
 
 	$effect(() => {
 		if (!browser) return;
@@ -87,6 +89,7 @@
 		if (r === 'reviewer' && w.kind === 'reviewer') {
 			if (w.persona === 'jane' || w.persona === 'joe') setRole(w.persona);
 			else setRole('jane');
+			setReviewerAssignmentAcceptedFromServer(w.reviewerCheckin ?? null);
 			setCategoryAssigneeOverride(w.categoryMap ?? null);
 			return () => setCategoryAssigneeOverride(null);
 		}
@@ -136,6 +139,18 @@
 			}
 		}
 	});
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
+		if (w.kind !== 'reviewer') return;
+		const hasProject = Boolean(w.pair && w.project);
+		if (hadReviewerProject && !hasProject) {
+			alert('You were replaced on the review project by an administrator.');
+			window.location.href = '/';
+		}
+		hadReviewerProject = hasProject;
+	});
 </script>
 
 <svelte:head>
@@ -153,6 +168,8 @@
 			<ProjectBriefing />
 		{:else if reviewerGate && data.workspace.kind === 'reviewer' && data.workspace.pair}
 			<ReviewerAssignmentPanel />
+		{:else if data.workspace.kind === 'reviewer' && data.workspace.pair}
+			<TestingView />
 		{:else}
 			<p class="text-sm text-kood-muted">Loading workspace…</p>
 		{/if}

@@ -147,6 +147,39 @@ export const codeReviewThreadMessage = sqliteTable('code_review_thread_message',
 	authorUserId: text('author_user_id').references(() => user.id)
 });
 
+/** Reviewer check-in status per project/persona (authoritative server source). */
+export const reviewerCheckin = sqliteTable(
+	'reviewer_checkin',
+	{
+		projectId: text('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		reviewerUserId: text('reviewer_user_id')
+			.notNull()
+			.references(() => user.id),
+		persona: text('persona').notNull(),
+		acceptedAt: integer('accepted_at', { mode: 'number' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'number' }).notNull()
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.projectId, t.reviewerUserId] })
+	})
+);
+
+/** Immutable event history for testing verdict changes (used by admin iteration analytics). */
+export const testingVerdictEvent = sqliteTable('testing_verdict_event', {
+	id: text('id').primaryKey(),
+	projectId: text('project_id')
+		.notNull()
+		.references(() => project.id, { onDelete: 'cascade' }),
+	itemId: text('item_id').notNull(),
+	persona: text('persona').notNull(),
+	verdict: text('verdict').notNull(),
+	testingRound: integer('testing_round', { mode: 'number' }).notNull(),
+	changedAt: integer('changed_at', { mode: 'number' }).notNull(),
+	changedByUserId: text('changed_by_user_id').references(() => user.id)
+});
+
 export const projectComment = sqliteTable('project_comment', {
 	id: text('id').primaryKey(),
 	projectId: text('project_id')

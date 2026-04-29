@@ -53,7 +53,9 @@
 
 		const bumpImmediate = (source: string) => {
 			realtimeClientLog('invalidateAll()', { source });
-			void invalidateAll();
+			void invalidateAll().catch(() => {
+				// Invalidation can race during navigation/HMR; ignore failures.
+			});
 		};
 		const bumpFromSocket = (source: string) => {
 			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
@@ -101,8 +103,17 @@
 
 		const onWorkspace = () => bumpFromSocket('socket:workspace:invalidate');
 		const onReview = () => bumpFromSocket('socket:review:invalidate');
+		const onReviewerReassigned = (payload: { reason?: string }) => {
+			const msg =
+				typeof payload?.reason === 'string' && payload.reason.trim().length > 0
+					? payload.reason
+					: 'You were replaced on this review project by an admin.';
+			alert(msg);
+			bumpFromSocket('socket:reviewer:reassigned');
+		};
 		socket.on('workspace:invalidate', onWorkspace);
 		socket.on('review:invalidate', onReview);
+		socket.on('reviewer:reassigned', onReviewerReassigned);
 
 		/** Rooms are per socket connection — must run on every `connect` (reload, reconnect, wake from sleep). */
 		const syncSessionRooms = () => {
@@ -156,6 +167,7 @@
 		return () => {
 			socket.off('workspace:invalidate', onWorkspace);
 			socket.off('review:invalidate', onReview);
+			socket.off('reviewer:reassigned', onReviewerReassigned);
 			socket.off('connect', onConnect);
 			socket.off('disconnect', onDisconnect);
 			socket.off('connect_error', onConnectError);
