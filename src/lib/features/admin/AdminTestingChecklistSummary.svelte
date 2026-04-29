@@ -44,6 +44,14 @@
 	function threadGroupsFor(itemId: string): AuditThreadGroup[] {
 		return threadGroups.filter((g) => g.context.includes(` ${itemId} —`) || g.context.includes(` ${itemId} `));
 	}
+
+	function activeVerdict(r: AdminTestingSummary['rows'][number]): string {
+		return activeOwnerTab === 'jane' ? r.jane : r.joe;
+	}
+
+	function activeDeclinesBeforeAccept(r: AdminTestingSummary['rows'][number]): number {
+		return activeOwnerTab === 'jane' ? r.janeDeclinesBeforeAccept : r.joeDeclinesBeforeAccept;
+	}
 </script>
 
 <section class="w-full rounded-xl border border-kood-border bg-kood-surface p-4 md:p-6">
@@ -60,17 +68,15 @@
 	<div class="mt-4">
 		<div class="rounded-lg border border-kood-border/80 bg-kood-bg/30 px-3 py-3">
 			<p class="text-[11px] font-semibold uppercase tracking-wide text-kood-muted">Mandatory</p>
-			<p class="mt-1 text-sm text-kood-text">
-				<span class="font-semibold text-emerald-200/90">{summary.mandatory.pass}</span>
-				<span class="text-kood-muted"> passed</span>
-				<span class="mx-1.5 text-kood-border/60">·</span>
-				<span class="font-semibold text-red-200/90">{summary.mandatory.fail}</span>
-				<span class="text-kood-muted"> failed</span>
-				<span class="mx-1.5 text-kood-border/60">·</span>
-				<span class="font-semibold text-kood-muted">{summary.mandatory.pending}</span>
-				<span class="text-kood-muted"> pending</span>
-			</p>
-			<p class="mt-1 text-[11px] text-kood-muted/90">of {summary.mandatory.total} checks</p>
+			<div class="mt-2 flex flex-wrap items-center gap-2">
+				<span class="inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-400/35">
+					{summary.mandatory.pass} passed
+				</span>
+				<span class="inline-flex rounded-full bg-kood-bg px-2.5 py-1 text-[11px] font-semibold text-kood-muted ring-1 ring-kood-border/70">
+					{summary.mandatory.pending} pending
+				</span>
+				<span class="text-[11px] text-kood-muted/90">of {summary.mandatory.total} checks</span>
+			</div>
 		</div>
 	</div>
 
@@ -119,22 +125,20 @@
 				<summary class="cursor-pointer list-none px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden">
 					<div class="flex flex-wrap items-center gap-2 text-xs">
 						<span class="font-mono text-[10px] text-kood-muted">{r.itemId}</span>
-						<span class={`font-medium tabular-nums ${verdictChip(r.jane)}`}>{reviewerAColumn}: {r.jane}</span>
-						<span class={`font-medium tabular-nums ${verdictChip(r.joe)}`}>{reviewerBColumn}: {r.joe}</span>
+						<span class={`font-medium tabular-nums ${verdictChip(activeVerdict(r))}`}>
+							{activeVerdict(r)}
+						</span>
 						<span class={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${outcomeClass(r.outcome)}`}>
 							{outcomeLabel(r.outcome)}
 						</span>
 					</div>
 					<p class="mt-1 text-xs text-kood-muted">{r.summary}</p>
-					<p class="mt-1 text-[11px] text-kood-muted/90">
-						{#if r.mandatoryOwner === 'jane'}
-							Declined before accept ({reviewerAColumn}): {r.janeDeclinesBeforeAccept}
-						{:else if r.mandatoryOwner === 'joe'}
-							Declined before accept ({reviewerBColumn}): {r.joeDeclinesBeforeAccept}
-						{:else}
-							Declines: {reviewerAColumn} {r.janeDeclines}, {reviewerBColumn} {r.joeDeclines}
-						{/if}
-					</p>
+					<div class="mt-2 inline-flex items-center gap-2 rounded-md border border-amber-400/35 bg-amber-500/[0.08] px-2.5 py-1">
+						<span class="text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">Iterations</span>
+						<span class="text-[11px] font-medium text-amber-100">
+							{activeDeclinesBeforeAccept(r)} decline{activeDeclinesBeforeAccept(r) === 1 ? '' : 's'} before accepted
+						</span>
+					</div>
 				</summary>
 				<div class="border-t border-kood-border/50 px-3 py-3">
 					<AdminThreadConversationFeed

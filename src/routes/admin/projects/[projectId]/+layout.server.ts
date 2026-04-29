@@ -1,4 +1,5 @@
 import { CATEGORIES } from '$lib/constants';
+import { buildAdminCodeReviewSummary } from '$lib/server/admin-code-review-summary';
 import {
 	parseFeedback360SnapshotFromCodeReviewJson,
 	parseStandupSnapshotFromCodeReviewJson
@@ -14,9 +15,13 @@ import {
 import type { AuditThreadEntry } from '$lib/server/review-audit';
 import {
 	adminProjectDisplayTitle,
+	categoryAssigneeMapFromPair,
 	getPairForProject,
 	getProjectById,
+	listCodeReviewObservationProgressForProject,
 	listCodeReviewThreadMessagesForProject,
+	listCodeReviewVerdictEventsForProject,
+	listReviewerCheckinsForProject,
 	listTestingVerdictEventsForProject,
 	listTestingItemProgressForProject,
 	listTestingThreadMessagesForProject,
@@ -59,9 +64,12 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 	const projectRow = await getProjectById(params.projectId);
 	if (!projectRow) error(404, 'Not found');
 	const pair = await getPairForProject(params.projectId);
+	const checkins = await listReviewerCheckinsForProject(params.projectId);
 
 	const tm = await listTestingThreadMessagesForProject(params.projectId);
 	const cm = await listCodeReviewThreadMessagesForProject(params.projectId);
+	const codeReviewProgressRows = await listCodeReviewObservationProgressForProject(params.projectId);
+	const codeReviewVerdictEvents = await listCodeReviewVerdictEventsForProject(params.projectId);
 	const testingProgressRows = await listTestingItemProgressForProject(params.projectId);
 	const testingVerdictEvents = await listTestingVerdictEventsForProject(params.projectId);
 
@@ -119,6 +127,13 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 		testingProgressRows,
 		testingVerdictEvents
 	);
+	const assigneeMap = pair ? categoryAssigneeMapFromPair(pair) : {};
+	const codeReviewAdminSummary = buildAdminCodeReviewSummary(
+		projectRow.codeReviewJson ?? null,
+		codeReviewProgressRows,
+		assigneeMap,
+		codeReviewVerdictEvents
+	);
 
 	const projectDisplayTitle = adminProjectDisplayTitle(
 		projectRow.giteaUrl,
@@ -132,8 +147,13 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
 		submitterName: room.submitterUsername,
 		reviewerAName: room.reviewerAUsername,
 		reviewerBName: room.reviewerBUsername,
+		reviewerCheckin: {
+			jane: checkins.some((x) => x.persona === 'jane'),
+			joe: checkins.some((x) => x.persona === 'joe')
+		},
 		testingThreadGroups,
 		testingChecklistAdminSummary,
+		codeReviewAdminSummary,
 		codeReviewThreadGroups,
 		standupSnapshot: parseStandupSnapshotFromCodeReviewJson(projectRow.codeReviewJson ?? null),
 		feedback360Snapshot: parseFeedback360SnapshotFromCodeReviewJson(projectRow.codeReviewJson ?? null)

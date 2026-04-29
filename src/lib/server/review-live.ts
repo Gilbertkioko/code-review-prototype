@@ -9,6 +9,7 @@ import { broadcastToProject, broadcastToRole, broadcastToUser } from '../../../s
 import { getDb } from './db';
 import {
 	codeReviewObservationProgress,
+	codeReviewVerdictEvent,
 	codeReviewThreadMessage,
 	project,
 	testingItemProgress,
@@ -494,6 +495,7 @@ export async function setCodeReviewVerdictLive(params: {
 	const joe = (existing?.joeVerdict ?? 'pending') as string;
 	const nextJane = persona === 'jane' ? verdict : jane;
 	const nextJoe = persona === 'joe' ? verdict : joe;
+	const changed = (persona === 'jane' ? jane : joe) !== verdict;
 	const cr =
 		existing?.codeReviewRound != null
 			? Math.max(existing.codeReviewRound, codeReviewRound >= 1 ? codeReviewRound : 1)
@@ -525,6 +527,19 @@ export async function setCodeReviewVerdictLive(params: {
 			joeVerdict: nextJoe,
 			codeReviewRound: cr,
 			updatedAt: now
+		});
+	}
+	if (changed) {
+		await db.insert(codeReviewVerdictEvent).values({
+			id: generateIdFromEntropySize(16),
+			projectId,
+			categoryId,
+			observationId,
+			persona,
+			verdict,
+			codeReviewRound: cr,
+			changedAt: now,
+			changedByUserId: userId
 		});
 	}
 	await refreshProjectReviewSnapshotsFromRelational(projectId);

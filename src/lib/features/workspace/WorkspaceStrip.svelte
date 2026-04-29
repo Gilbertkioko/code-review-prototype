@@ -123,10 +123,6 @@
 					>
 				</p>
 			{/if}
-			<p class="mt-3 text-xs text-kood-muted">
-				Use <strong class="text-kood-text/90">Save</strong> below to push Testing and Code review to the server for the
-				submitter and your peer.
-			</p>
 			<ReviewSyncToolbar project={reviewer.project} canMarkComplete={reviewer.canMarkComplete ?? false} />
 		{:else}
 			<p class="mt-2 text-xs text-kood-muted">You are not assigned to a project yet. An admin will pair you with a partner.</p>

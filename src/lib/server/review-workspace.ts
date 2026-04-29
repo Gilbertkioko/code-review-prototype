@@ -8,6 +8,7 @@ import { generateIdFromEntropySize } from 'lucia';
 import { getDb } from './db';
 import {
 	codeReviewObservationProgress,
+	codeReviewVerdictEvent,
 	codeReviewThreadMessage,
 	project,
 	projectComment,
@@ -396,6 +397,7 @@ export async function adminResetReviewCycle(projectId: string): Promise<{ ok: tr
 		await tx.delete(testingVerdictEvent).where(eq(testingVerdictEvent.projectId, projectId));
 		await tx.delete(codeReviewThreadMessage).where(eq(codeReviewThreadMessage.projectId, projectId));
 		await tx.delete(codeReviewObservationProgress).where(eq(codeReviewObservationProgress.projectId, projectId));
+		await tx.delete(codeReviewVerdictEvent).where(eq(codeReviewVerdictEvent.projectId, projectId));
 
 		await tx
 			.update(project)
@@ -581,6 +583,14 @@ export async function listCodeReviewObservationProgressForProject(projectId: str
 			asc(codeReviewObservationProgress.categoryId),
 			asc(codeReviewObservationProgress.observationId)
 		);
+}
+
+export async function listCodeReviewVerdictEventsForProject(projectId: string) {
+	return await getDb()
+		.select()
+		.from(codeReviewVerdictEvent)
+		.where(eq(codeReviewVerdictEvent.projectId, projectId))
+		.orderBy(asc(codeReviewVerdictEvent.changedAt), asc(codeReviewVerdictEvent.id));
 }
 
 export async function listCodeReviewThreadMessagesForProject(projectId: string) {

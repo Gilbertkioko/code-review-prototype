@@ -40,11 +40,27 @@ CREATE TABLE IF NOT EXISTS testing_verdict_event (
 );
 `);
 
+await client.execute(`
+CREATE TABLE IF NOT EXISTS code_review_verdict_event (
+	id text PRIMARY KEY NOT NULL,
+	project_id text NOT NULL,
+	category_id text NOT NULL,
+	observation_id text NOT NULL,
+	persona text NOT NULL,
+	verdict text NOT NULL,
+	code_review_round integer NOT NULL,
+	changed_at integer NOT NULL,
+	changed_by_user_id text,
+	FOREIGN KEY (project_id) REFERENCES project(id) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (changed_by_user_id) REFERENCES user(id) ON UPDATE no action ON DELETE no action
+);
+`);
+
 const rows = await client.execute(`
 SELECT name
 FROM sqlite_master
 WHERE type='table'
-  AND name IN ('reviewer_checkin', 'testing_verdict_event')
+  AND name IN ('reviewer_checkin', 'testing_verdict_event', 'code_review_verdict_event')
 ORDER BY name;
 `);
 
