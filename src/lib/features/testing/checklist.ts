@@ -36,44 +36,26 @@ export function withMandatoryOwners(items: TestingItem[]): TestingItem[] {
 	});
 }
 
-/** Trimmed checklist: 3 mandatory rows per reviewer. */
+/** Trimmed checklist: 3 mandatory rows total. */
 export function createFullTestingItems(): TestingItem[] {
 	const raw = [
 		row(
 			'm1',
 			'mandatory',
-			'Repository contains complete source code and configuration files.',
-			'Your repository contains complete source code and configuration files.'
+			'The root README describes how to launch the project and includes a user guide for the core interfaces.',
+			'The root README describes how to launch the project and includes a user guide for the core interfaces.'
 		),
 		row(
 			'm2',
 			'mandatory',
-			'Documentation (README) includes all required sections: project overview, complete setup instructions, usage guide.',
-			'Your documentation (README) includes all required sections: project overview, complete setup instructions, usage guide.'
+			'The receptionist can add and remove upcoming race sessions, manage drivers, and prevent duplicate driver names.',
+			'The receptionist can add and remove upcoming race sessions, manage drivers, and prevent duplicate driver names.'
 		),
 		row(
 			'm3',
 			'mandatory',
-			'Application runs successfully on a virtual or physical device with chosen platform (Android/iOS).',
-			'Your application runs successfully on a virtual or physical device with your chosen platform (Android/iOS).'
-		),
-		row(
-			'm4',
-			'mandatory',
-			'User can create an account with email, username and password.',
-			'Your application allows users to create an account with email, username and password.'
-		),
-		row(
-			'm5',
-			'mandatory',
-			'Registration is not allowed if email or username is already in use. User receives proper visual feedback.',
-			'Your application prevents registration if email or username is already in use and provides proper visual feedback.'
-		),
-		row(
-			'm6',
-			'mandatory',
-			'Application checks password strength: >=8 characters, lowercase, uppercase, digit, special character. Registration blocked if weak; user gets visual feedback.',
-			'Your application checks password strength (>=8 characters, lowercase, uppercase, digit, special character), blocks weak passwords, and provides visual feedback.'
+			'The Safety Official can start the race, change mode flags in real time, and the system uses Socket.IO for live updates instead of polling.',
+			'The Safety Official can start the race, change mode flags in real time, and the system uses Socket.IO for live updates instead of polling.'
 		)
 	];
 	return withMandatoryOwners(raw);
