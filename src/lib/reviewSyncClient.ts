@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
-import { invalidateAll } from '$app/navigation';
+import { invalidate, invalidateAll } from '$app/navigation';
 import { getActiveCollaboration } from '$lib/collaborationContext';
+import { WORKSPACE_PAGE_LOAD } from '$lib/workspaceLoadDependency';
 
 export async function postFormReviewAction(
 	action: string,
@@ -13,7 +14,9 @@ export async function postFormReviewAction(
 	fd.set('projectId', c.projectId);
 	for (const [k, v] of Object.entries(fields)) fd.set(k, v);
 	const res = await fetch(`?/${action}`, { method: 'POST', body: fd, credentials: 'include' });
-	if (res.ok) await invalidateAll();
+	if (res.ok) {
+		await invalidate(WORKSPACE_PAGE_LOAD);
+	}
 	return { ok: res.ok };
 }
 
@@ -30,7 +33,9 @@ export async function saveReviewStateWithPayloads(
 	fd.set('codeReviewPayload', codeReviewPayload);
 	try {
 		const res = await fetch('?/saveReviewState', { method: 'POST', body: fd, credentials: 'include' });
-		if (res.ok) await invalidateAll();
+		if (res.ok) {
+			await invalidate(WORKSPACE_PAGE_LOAD);
+		}
 		return res.ok;
 	} catch {
 		return false;

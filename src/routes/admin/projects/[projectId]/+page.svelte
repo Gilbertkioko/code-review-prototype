@@ -2,12 +2,15 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
-let { data, form } = $props();
+	let { data, form } = $props();
 
 	const started = $derived(
 		data.project.createdAt ? new Date(data.project.createdAt).toLocaleString() : '—'
 	);
 	const sidebarHidden = $derived(Boolean(data.project.adminSidebarHiddenAt));
+	const acceptedCount = $derived(
+		Number(Boolean(data.reviewerCheckin?.jane)) + Number(Boolean(data.reviewerCheckin?.joe))
+	);
 </script>
 
 <svelte:head>
@@ -64,6 +67,43 @@ let { data, form } = $props();
 				<p class="mt-1 font-medium text-kood-text">{data.reviewerBName}</p>
 			</div>
 		</div>
+
+		{#if data.pair}
+			<div class="mt-4 rounded-xl border border-kood-border/60 bg-kood-bg/20 p-4">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<p class="text-xs font-semibold uppercase tracking-wide text-kood-muted">Reviewer check-in</p>
+					<span class="rounded-full border border-kood-border/70 bg-kood-bg/40 px-2.5 py-1 text-[11px] font-medium text-kood-muted">
+						{acceptedCount}/2 accepted
+					</span>
+				</div>
+				<div class="mt-3 grid gap-2 md:grid-cols-2">
+					<div class="flex items-center justify-between rounded-lg border border-kood-border/50 bg-kood-bg/30 px-3 py-2">
+						<span class="text-xs text-kood-text/95">{data.reviewerAName}</span>
+						<span
+							class={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+								data.reviewerCheckin?.jane
+									? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/30'
+									: 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30'
+							}`}
+						>
+							{data.reviewerCheckin?.jane ? 'Accepted' : 'Pending'}
+						</span>
+					</div>
+					<div class="flex items-center justify-between rounded-lg border border-kood-border/50 bg-kood-bg/30 px-3 py-2">
+						<span class="text-xs text-kood-text/95">{data.reviewerBName}</span>
+						<span
+							class={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+								data.reviewerCheckin?.joe
+									? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/30'
+									: 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30'
+							}`}
+						>
+							{data.reviewerCheckin?.joe ? 'Accepted' : 'Pending'}
+						</span>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<div class="mt-6 border-t border-kood-border/50 pt-4">
 			<p class="text-xs font-medium text-kood-muted">Sidebar</p>
@@ -239,36 +279,5 @@ let { data, form } = $props();
 			</div>
 		{/if}
 
-		{#if data.pair && data.project.status === 'review_active'}
-			<div class="mt-6 border-t border-kood-border/50 pt-4">
-				<p class="text-xs font-medium text-kood-muted">Reset cycle</p>
-				<form
-					method="post"
-					action="?/resetReviewCycle"
-					class="mt-3"
-					use:enhance={() => async ({ update }) => {
-						await update();
-						await invalidateAll();
-					}}
-				>
-					<input type="hidden" name="projectId" value={data.project.id} />
-					<button
-						type="submit"
-						class="rounded-md border border-kood-border bg-kood-bg px-3 py-1.5 text-xs font-medium text-kood-text hover:bg-kood-surface-raised"
-						onclick={(e) => {
-							if (
-								!confirm(
-									'Reset testing + code-review progress for this project? Reviewers will need to check in and accept again.'
-								)
-							) {
-								e.preventDefault();
-							}
-						}}
-					>
-						Reset Testing &amp; Code review
-					</button>
-				</form>
-			</div>
-		{/if}
 	</header>
 </div>

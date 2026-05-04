@@ -180,6 +180,21 @@ export const testingVerdictEvent = sqliteTable('testing_verdict_event', {
 	changedByUserId: text('changed_by_user_id').references(() => user.id)
 });
 
+/** Immutable event history for code-review verdict changes (used by admin iteration analytics). */
+export const codeReviewVerdictEvent = sqliteTable('code_review_verdict_event', {
+	id: text('id').primaryKey(),
+	projectId: text('project_id')
+		.notNull()
+		.references(() => project.id, { onDelete: 'cascade' }),
+	categoryId: text('category_id').notNull(),
+	observationId: text('observation_id').notNull(),
+	persona: text('persona').notNull(),
+	verdict: text('verdict').notNull(),
+	codeReviewRound: integer('code_review_round', { mode: 'number' }).notNull(),
+	changedAt: integer('changed_at', { mode: 'number' }).notNull(),
+	changedByUserId: text('changed_by_user_id').references(() => user.id)
+});
+
 export const projectComment = sqliteTable('project_comment', {
 	id: text('id').primaryKey(),
 	projectId: text('project_id')

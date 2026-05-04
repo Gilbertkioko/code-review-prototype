@@ -23,8 +23,17 @@ export function parseStandupSnapshotFromCodeReviewJson(
 	if (!codeReviewJson) return null;
 	try {
 		const root = JSON.parse(codeReviewJson) as Record<string, unknown>;
+		if (!parseCodeReviewSavePayload(codeReviewJson)) return null;
 		const s = root.standup;
-		if (!s || typeof s !== 'object') return null;
+		if (!s || typeof s !== 'object') {
+			return {
+				standupWhen: '',
+				standupVoiceChannel: '',
+				standupTakeaways: '',
+				standupTakeawayMessages: [],
+				standupItems: Array.from({ length: STANDUP_LEN }, () => false)
+			};
+		}
 		const o = s as Record<string, unknown>;
 		const items: boolean[] = [];
 		if (Array.isArray(o.standupItems)) {
@@ -71,6 +80,34 @@ export function parseStandupSnapshotFromCodeReviewJson(
 	}
 }
 
+const STANDUP_THREAD_MAX = 200;
+
+/** Union by message id so concurrent saves from different personas do not drop each other's posts. */
+export function mergeStandupTakeawayMessageLists(
+	existing: StandupTakeawayMessage[],
+	incoming: StandupTakeawayMessage[]
+): StandupTakeawayMessage[] {
+	const byId = new Map<string, StandupTakeawayMessage>();
+	const put = (m: StandupTakeawayMessage) => {
+		if (typeof m.id !== 'string' || !m.id) return;
+		if (m.author !== 'sandra' && m.author !== 'jane' && m.author !== 'joe') return;
+		if (typeof m.text !== 'string' || !m.text.trim()) return;
+		const text = m.text.slice(0, 2000);
+		const next: StandupTakeawayMessage = {
+			id: m.id,
+			author: m.author,
+			text,
+			at: typeof m.at === 'string' ? m.at : ''
+		};
+		const prev = byId.get(m.id);
+		if (!prev || (next.at || '') >= (prev.at || '')) byId.set(m.id, next);
+	};
+	for (const m of existing) put(m);
+	for (const m of incoming) put(m);
+	const out = [...byId.values()].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+	return out.length > STANDUP_THREAD_MAX ? out.slice(out.length - STANDUP_THREAD_MAX) : out;
+}
+
 export type Feedback360SnapshotPersisted = {
 	sandraRatings: SandraRating[];
 	reviewerRatings: Record<'jane' | 'joe', ReviewerRatingSet>;
@@ -93,10 +130,11 @@ function parseMiniRating(
 	let score: number | null = fallback.score;
 	if (o.score === null) score = null;
 	else if (typeof o.score === 'number' && o.score >= 1 && o.score <= 5) score = o.score;
+	const submitted = typeof o.submitted === 'boolean' ? o.submitted : fallback.submitted;
 	return {
 		score,
 		comment: typeof o.comment === 'string' ? o.comment : fallback.comment,
-		submitted: typeof o.submitted === 'boolean' ? o.submitted : fallback.submitted
+		submitted: submitted && score !== null
 	};
 }
 
@@ -117,8 +155,19 @@ export function parseFeedback360SnapshotFromCodeReviewJson(
 	if (!codeReviewJson) return null;
 	try {
 		const root = JSON.parse(codeReviewJson) as Record<string, unknown>;
+		if (!parseCodeReviewSavePayload(codeReviewJson)) return null;
 		const fb = root.feedback360;
-		if (!fb || typeof fb !== 'object') return null;
+		if (!fb || typeof fb !== 'object') {
+			return {
+				sandraRatings: CATEGORIES.map((c) => ({
+					categoryId: c.id,
+					score: null,
+					comment: '',
+					submitted: false
+				})),
+				reviewerRatings: { jane: blankReviewerSet(), joe: blankReviewerSet() }
+			};
+		}
 		const o = fb as Record<string, unknown>;
 
 		const byId = new Map<string, SandraRating>();
@@ -130,11 +179,12 @@ export function parseFeedback360SnapshotFromCodeReviewJson(
 				let score: number | null = null;
 				if (r.score === null) score = null;
 				else if (typeof r.score === 'number' && r.score >= 1 && r.score <= 5) score = r.score;
+				const submitted = r.submitted === true;
 				byId.set(r.categoryId, {
 					categoryId: r.categoryId,
 					score,
 					comment: typeof r.comment === 'string' ? r.comment : '',
-					submitted: Boolean(r.submitted)
+					submitted: submitted && score !== null
 				});
 			}
 		}

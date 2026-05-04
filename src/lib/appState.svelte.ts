@@ -289,11 +289,15 @@ function normalizeSandraRatings(parsed: unknown): SandraRating[] {
 		if (!x || typeof x !== 'object') continue;
 		const r = x as SandraRating;
 		if (typeof r.categoryId !== 'string') continue;
+		let score: number | null = null;
+		if (typeof r.score === 'number' && r.score >= 1 && r.score <= 5) score = r.score;
+		const submitted = r.submitted === true;
 		byId.set(r.categoryId, {
 			categoryId: r.categoryId,
-			score: typeof r.score === 'number' || r.score === null ? r.score : null,
+			score,
 			comment: typeof r.comment === 'string' ? r.comment : '',
-			submitted: Boolean(r.submitted)
+			/* Must match submit rules — never treat loose JSON truthiness as submitted. */
+			submitted: submitted && score !== null
 		});
 	}
 	return base.map((row) => {
@@ -312,10 +316,11 @@ function mergeReviewerRatingMini(
 	let score: number | null = base.score;
 	if (o.score === null) score = null;
 	else if (typeof o.score === 'number' && o.score >= 1 && o.score <= 5) score = o.score;
+	const submitted = typeof o.submitted === 'boolean' ? o.submitted : base.submitted;
 	return {
 		score,
 		comment: typeof o.comment === 'string' ? o.comment : base.comment,
-		submitted: typeof o.submitted === 'boolean' ? o.submitted : base.submitted
+		submitted: submitted && score !== null
 	};
 }
 
@@ -925,10 +930,55 @@ export function importCategorySessionsFromServer(patch: unknown) {
 	if (fb && typeof fb === 'object') {
 		const o = fb as Record<string, unknown>;
 		if (Array.isArray(o.sandraRatings)) {
-			data.sandraRatings = normalizeSandraRatings(o.sandraRatings);
+			const incoming = normalizeSandraRatings(o.sandraRatings);
+			const prev = data.sandraRatings;
+			/* Stale workspace refetch can arrive before DB reflects latest save — keep local unsubmitted drafts. */
+			data.sandraRatings = incoming.map((row) => {
+				const rowSafe =
+					row.submitted && row.score === null ? { ...row, submitted: false } : row;
+				const old = prev.find((x) => x.categoryId === rowSafe.categoryId);
+				if (
+					old &&
+					!old.submitted &&
+					!rowSafe.submitted &&
+					rowSafe.score === null &&
+					old.score !== null
+				) {
+					return {
+						...rowSafe,
+						score: old.score,
+						comment: rowSafe.comment || old.comment
+					};
+				}
+				return rowSafe;
+			});
 		}
 		if (o.reviewerRatings && typeof o.reviewerRatings === 'object') {
-			data.reviewerRatings = normalizeReviewerRatingsFromServer(o.reviewerRatings);
+			const incoming = normalizeReviewerRatingsFromServer(o.reviewerRatings);
+			const p = data.reviewerRatings;
+			const mergeMini = (
+				prev: { score: number | null; comment: string; submitted: boolean },
+				inc: { score: number | null; comment: string; submitted: boolean }
+			) => {
+				const incRow = inc.submitted && inc.score === null ? { ...inc, submitted: false } : inc;
+				if (incRow.submitted) return incRow;
+				if (!prev.submitted && incRow.score === null && prev.score !== null) {
+					return { ...incRow, score: prev.score, comment: incRow.comment || prev.comment };
+				}
+				return incRow;
+			};
+			data.reviewerRatings = {
+				jane: {
+					readableCode: mergeMini(p.jane.readableCode, incoming.jane.readableCode),
+					codeComments: mergeMini(p.jane.codeComments, incoming.jane.codeComments),
+					crossReviewer: mergeMini(p.jane.crossReviewer, incoming.jane.crossReviewer)
+				},
+				joe: {
+					readableCode: mergeMini(p.joe.readableCode, incoming.joe.readableCode),
+					codeComments: mergeMini(p.joe.codeComments, incoming.joe.codeComments),
+					crossReviewer: mergeMini(p.joe.crossReviewer, incoming.joe.crossReviewer)
+				}
+			};
 		}
 	}
 }
@@ -1103,14 +1153,18 @@ export function toggleStandup(i: number) {
 }
 
 export function completeStandup() {
-	if (data.role !== 'sandra') return;
-	if (!data.standupItems.every(Boolean)) {
-		pushToast('Check off all standup agenda items to continue.');
+	if (data.role !== 'sandra' && data.role !== 'jane' && data.role !== 'joe') return;
+	if (!data.standupItems.slice(0, STANDUP_CHECKBOX_COUNT).every(Boolean)) {
+		pushToast('Check off all standup agenda items on the server before continuing.');
 		return;
 	}
 	data.phase = 'accept_project';
-	data.xpMock += 50;
-	pushToast('Standup complete. +50 XP (mock).');
+	if (data.role === 'sandra') {
+		data.xpMock += 50;
+		pushToast('Standup complete. +50 XP (mock). Next: accept the project, then 360° feedback.');
+	} else {
+		pushToast('Standup complete on your side. Next: accept the project, then open 360° feedback.');
+	}
 }
 
 export function completeAcceptProject() {
@@ -1119,11 +1173,13 @@ export function completeAcceptProject() {
 }
 
 export function setSandraRating(categoryId: string, score: number, comment: string) {
-	const r = data.sandraRatings.find((x) => x.categoryId === categoryId);
-	if (!r || r.submitted) return;
-	r.score = score;
-	r.comment = comment;
-	r.submitted = true;
+	const i = data.sandraRatings.findIndex((x) => x.categoryId === categoryId);
+	if (i < 0) return;
+	const r = data.sandraRatings[i];
+	if (r.submitted) return;
+	data.sandraRatings = data.sandraRatings.map((x, j) =>
+		j === i ? { ...x, score, comment, submitted: true } : x
+	);
 	data.xpMock += 15;
 	pushToast(`Rating saved for ${categoryId}. +15 XP (mock).`);
 }
@@ -1134,11 +1190,16 @@ export function setReviewerRating(
 	score: number,
 	comment: string
 ) {
-	const block = data.reviewerRatings[reviewer][key];
+	const set = data.reviewerRatings[reviewer];
+	const block = set[key];
 	if (block.submitted) return;
-	block.score = score;
-	block.comment = comment;
-	block.submitted = true;
+	data.reviewerRatings = {
+		...data.reviewerRatings,
+		[reviewer]: {
+			...set,
+			[key]: { ...block, score, comment, submitted: true }
+		}
+	};
 	data.xpMock += 15;
 	pushToast('Reviewer feedback saved. +15 XP (mock).');
 }

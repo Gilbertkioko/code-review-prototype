@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AdminThreadConversationFeed from '$lib/features/admin/AdminThreadConversationFeed.svelte';
+	import AdminCodeReviewChecklistSummary from '$lib/features/admin/AdminCodeReviewChecklistSummary.svelte';
 
 	let { data } = $props();
 </script>
@@ -22,11 +22,16 @@
 	</p>
 
 	<header>
-		<h1 class="text-lg font-semibold text-kood-text">Code review — conversation threads</h1>
+		<h1 class="text-lg font-semibold text-kood-text">Code review outcomes</h1>
 		<p class="mt-1 text-sm text-kood-muted">
-			Threads are collapsed by default; expand a row to read messages (oldest → newest within each observation).
+			Review each assigned observation by reviewer tab. Expand a row for discussion history.
 		</p>
 	</header>
 
-	<AdminThreadConversationFeed groups={data.codeReviewThreadGroups} emptyLabel="No code review comments saved yet." />
+	<AdminCodeReviewChecklistSummary
+		summary={data.codeReviewAdminSummary}
+		reviewerAColumn={data.reviewerAName}
+		reviewerBColumn={data.reviewerBName}
+		threadGroups={data.codeReviewThreadGroups}
+	/>
 </div>

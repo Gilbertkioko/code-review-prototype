@@ -9,6 +9,7 @@ import { broadcastToProject, broadcastToRole, broadcastToUser } from '../../../s
 import { getDb } from './db';
 import {
 	codeReviewObservationProgress,
+	codeReviewVerdictEvent,
 	codeReviewThreadMessage,
 	project,
 	testingItemProgress,
@@ -267,11 +268,26 @@ export async function buildCodeReviewSnapshotJson(
 				}));
 		}
 	}
-	return JSON.stringify({
-		version: 1 as const,
+	const out: Record<string, unknown> = {
+		version: 1,
 		codeReviewRound,
 		categorySessions: sessions
-	});
+	};
+	/* Standup + 360° live only in JSON blobs today — relational rebuild must not wipe them (admin + clients rely on this). */
+	if (previousJson) {
+		try {
+			const prevRoot = JSON.parse(previousJson) as Record<string, unknown>;
+			if (prevRoot.standup && typeof prevRoot.standup === 'object') {
+				out.standup = prevRoot.standup;
+			}
+			if (prevRoot.feedback360 && typeof prevRoot.feedback360 === 'object') {
+				out.feedback360 = prevRoot.feedback360;
+			}
+		} catch {
+			/* ignore */
+		}
+	}
+	return JSON.stringify(out);
 }
 
 export async function refreshProjectReviewSnapshotsFromRelational(projectId: string) {
@@ -494,6 +510,7 @@ export async function setCodeReviewVerdictLive(params: {
 	const joe = (existing?.joeVerdict ?? 'pending') as string;
 	const nextJane = persona === 'jane' ? verdict : jane;
 	const nextJoe = persona === 'joe' ? verdict : joe;
+	const changed = (persona === 'jane' ? jane : joe) !== verdict;
 	const cr =
 		existing?.codeReviewRound != null
 			? Math.max(existing.codeReviewRound, codeReviewRound >= 1 ? codeReviewRound : 1)
@@ -525,6 +542,19 @@ export async function setCodeReviewVerdictLive(params: {
 			joeVerdict: nextJoe,
 			codeReviewRound: cr,
 			updatedAt: now
+		});
+	}
+	if (changed) {
+		await db.insert(codeReviewVerdictEvent).values({
+			id: generateIdFromEntropySize(16),
+			projectId,
+			categoryId,
+			observationId,
+			persona,
+			verdict,
+			codeReviewRound: cr,
+			changedAt: now,
+			changedByUserId: userId
 		});
 	}
 	await refreshProjectReviewSnapshotsFromRelational(projectId);
