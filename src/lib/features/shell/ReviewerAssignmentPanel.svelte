@@ -86,47 +86,30 @@
 			</section>
 
 			<section class="rounded-xl border border-kood-accent/20 bg-kood-accent/5 p-4">
-				<h3 class="text-sm font-semibold text-kood-text">“This is a review, not a roast” 🍞</h3>
+				<h3 class="text-sm font-semibold text-kood-text">Feedback tone</h3>
 				<p class="mt-2 text-sm leading-relaxed text-kood-muted">
-					We’re here for <strong class="text-kood-text/90">depth</strong>, not dunking. Assume {submitterName} already
-					tried hard; your job is to make the next version safer and clearer—without making a human regret opening the
-					repo.
+					Comments and verdicts should help {submitterName} ship a better version: name the problem, why it matters, and
+					what you’d change. Keep the focus on the implementation, not on judging {submitterName} personally.
 				</p>
-				<ul class="mt-3 list-none space-y-2 text-sm text-kood-text/90">
-					<li class="flex gap-2">
-						<span class="shrink-0" aria-hidden="true">🧠</span>
-						<span
-							><strong class="text-kood-text">Critique the code, cheer the effort.</strong> “This path could leak
-							X” beats “why would anyone ship this.”</span
-						>
+				<ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-kood-text/90">
+					<li>
+						<strong class="text-kood-text">Comment on the work.</strong> Describe what you saw in the code and the
+						effect it has (behaviour, security, maintainability). 
+						
 					</li>
-					<li class="flex gap-2">
-						<span class="shrink-0" aria-hidden="true">🎯</span>
-						<span
-							><strong class="text-kood-text">Be specific.</strong> Point to files, lines, or flows. Vague dread
-							helps nobody.</span
-						>
+					<li>
+						<strong class="text-kood-text">Be specific.</strong> Reference files, functions, or flows so
+						{submitterName} can find the same spot and know what to fix.
 					</li>
-					<li class="flex gap-2">
-						<span class="shrink-0" aria-hidden="true">🤝</span>
-						<span
-							><strong class="text-kood-text">Nudge = “please fix,” not “you’re fired.”</strong> Tie feedback to
-							requirements and risk, not vibes.</span
-						>
+					<li>
+						<strong class="text-kood-text">Ground it in substance.</strong> Prefer requirements, acceptance criteria, or
+						clear risk over vague dislike—so Declines and thread notes read as actionable requests, not venting.
 					</li>
-					<li class="flex gap-2">
-						<span class="shrink-0" aria-hidden="true">☕</span>
-						<span
-							><strong class="text-kood-text">If you’re tired, pause before sending.</strong> The diff will still
-							be there after coffee. (Classic “don’t email angry,” but for Git.)</span
-						>
+					<li>
+						<strong class="text-kood-text">Pause if you’re under pressure.</strong> Short, factual feedback is easier to
+						use than a message sent in a hurry or while frustrated.
 					</li>
 				</ul>
-				<p class="mt-3 border-t border-kood-accent/15 pt-3 text-xs italic text-kood-muted">
-					Internal monologue we endorse: <span class="not-italic text-kood-text/80"
-						>“I am a helpful senior duck, not a comments-section goblin.”</span
-					>
-				</p>
 			</section>
 
 			<section class="rounded-lg border border-kood-border bg-kood-bg/30 p-4 text-sm text-kood-muted">
@@ -146,13 +129,6 @@
 				</ul>
 			</section>
 
-			<section class="rounded-lg border border-kood-border/80 bg-kood-surface-raised/40 p-4 text-sm text-kood-muted">
-				<h3 class="text-sm font-semibold text-kood-text">Submitter ({submitterName}) — different hat 🎩</h3>
-				<p class="mt-2">
-					{submitterName} ships fixes, answers threads, and may start new testing rounds. They don’t score your
-					categories—you do. In standup, they connect “what changed” with “what still worries me.”
-				</p>
-			</section>
 
 			<div class="border-t border-kood-border pt-4">
 				<label class="flex cursor-pointer items-start gap-3 text-sm text-kood-text/90">
