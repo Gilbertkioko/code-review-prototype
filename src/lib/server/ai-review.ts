@@ -7,13 +7,15 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { promisify } from 'node:util';
 import { getDb } from './db';
 import { aiReviewCache, aiReviewJob, projectAiReview } from './db/schema';
 
 export const AI_REVIEW_PROMPT_VERSION = 'v2';
 export const AI_REVIEW_MODEL = 'claude-haiku-4-5-20251001';
+/** Long structured reviews exceed 4k tokens; truncated JSON fails to parse. */
+const AI_REVIEW_MAX_OUTPUT_TOKENS = 16_384;
 const execFileAsync = promisify(execFile);
 const MAX_REPO_FILES = 80;
 const MAX_FILE_CHARS = 10_000;
@@ -156,8 +158,25 @@ export function normalizeRepoUrl(input: string): string {
 	}
 }
 
+/** IDE / GUI-launched Node often has a stripped PATH; git lives in /usr/bin on typical Linux. */
+function gitSpawnEnv(): NodeJS.ProcessEnv {
+	const standard =
+		process.platform === 'win32'
+			? ['C:\\Program Files\\Git\\cmd', 'C:\\Program Files\\Git\\bin']
+			: ['/usr/local/bin', '/usr/bin', '/bin'];
+	const prefix = standard.join(delimiter);
+	const cur = process.env.PATH ?? '';
+	const pathValue = cur.length ? `${prefix}${delimiter}${cur}` : prefix;
+	return { ...process.env, PATH: pathValue };
+}
+
 async function runGit(args: string[], cwd?: string): Promise<void> {
-	await execFileAsync('git', args, { cwd, timeout: 120_000, maxBuffer: 10 * 1024 * 1024 });
+	await execFileAsync('git', args, {
+		cwd,
+		timeout: 120_000,
+		maxBuffer: 10 * 1024 * 1024,
+		env: gitSpawnEnv()
+	});
 }
 
 function extensionOf(path: string): string {
@@ -233,15 +252,27 @@ export function computeQuestionsHash(snapshot: ReviewQuestionsSnapshot): string 
 	return createHash('sha256').update(canonical).digest('hex');
 }
 
+/** Strip leading ```json / ``` and trailing ``` (handles complete fences; opening-only if output was truncated). */
+function unwrapModelJsonText(raw: string): string {
+	let t = raw.trim();
+	const open = t.match(/^```(?:json)?\s*/i);
+	if (open) t = t.slice(open[0].length);
+	const closeM = t.match(/\s*```\s*$/);
+	if (closeM) t = t.slice(0, t.length - closeM[0].length);
+	return t.trim();
+}
+
 function parseAnthropicTextPayload(rawText: string): AiReviewStructuredResult {
 	const trimmed = rawText.trim();
-	const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1]?.trim() ?? null;
-	const direct = tryParseJson<AiReviewStructuredResult>(trimmed);
-	const fromFence = fenced ? tryParseJson<AiReviewStructuredResult>(fenced) : null;
-	const firstObject = extractFirstJsonObject(trimmed);
-	const fromFirstObject = firstObject ? tryParseJson<AiReviewStructuredResult>(firstObject) : null;
+	const unwrapped = unwrapModelJsonText(trimmed);
+	const direct = tryParseJson<AiReviewStructuredResult>(unwrapped);
+	const firstUnwrapped = extractFirstJsonObject(unwrapped);
+	const fromFirstUnwrapped = firstUnwrapped ? tryParseJson<AiReviewStructuredResult>(firstUnwrapped) : null;
+	const directRaw = tryParseJson<AiReviewStructuredResult>(trimmed);
+	const firstRaw = extractFirstJsonObject(trimmed);
+	const fromFirstRaw = firstRaw ? tryParseJson<AiReviewStructuredResult>(firstRaw) : null;
 
-	const parsed = direct ?? fromFence ?? fromFirstObject;
+	const parsed = direct ?? fromFirstUnwrapped ?? directRaw ?? fromFirstRaw;
 	if (!parsed) {
 		throw new Error(`Could not parse model response as JSON. Full response:\n${trimmed}`);
 	}
@@ -310,7 +341,7 @@ async function callClaudeForReview(params: {
 		},
 		body: JSON.stringify({
 			model: AI_REVIEW_MODEL,
-			max_tokens: 4000,
+			max_tokens: AI_REVIEW_MAX_OUTPUT_TOKENS,
 			temperature: 0.2,
 			messages: [{ role: 'user', content: prompt }]
 		})
@@ -321,10 +352,16 @@ async function callClaudeForReview(params: {
 	}
 	const payload = (await res.json()) as {
 		content?: Array<{ type?: string; text?: string }>;
+		stop_reason?: string;
 	};
 	const textBlocks = (payload.content ?? []).filter((b) => b.type === 'text' && typeof b.text === 'string');
 	const rawText = textBlocks.map((b) => b.text ?? '').join('\n').trim();
 	if (!rawText) throw new Error('Anthropic response did not include text content');
+	if (payload.stop_reason === 'max_tokens') {
+		throw new Error(
+			'AI review output was truncated (hit max_tokens). Increase AI_REVIEW_MAX_OUTPUT_TOKENS in ai-review.ts or shorten the prompt context.'
+		);
+	}
 	return rawText;
 }
 
