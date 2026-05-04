@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { setContext } from 'svelte';
 	import {
 		appStateStorageKey,
@@ -10,7 +10,12 @@
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
 	import { realtimeClientLog } from '$lib/realtimeDebug';
 	import { connectRealtimeSse, isRealtimeSseEnabled } from '$lib/realtimeSse';
-	import { cancelDebouncedInvalidateAll, scheduleDebouncedInvalidateAll } from '$lib/realtimeInvalidate';
+	import {
+		cancelDebouncedInvalidateAll,
+		scheduleDebouncedInvalidateAll,
+		scheduleDebouncedWorkspaceReload
+	} from '$lib/realtimeInvalidate';
+	import { WORKSPACE_PAGE_LOAD } from '$lib/workspaceLoadDependency';
 	import { getRealtimeSocket } from '$lib/socket';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
@@ -52,14 +57,24 @@
 		const sessionUser = data.sessionUser;
 
 		const bumpImmediate = (source: string) => {
-			realtimeClientLog('invalidateAll()', { source });
-			void invalidateAll().catch(() => {
+			realtimeClientLog('invalidate(app:workspace) poll', { source });
+			void invalidate(WORKSPACE_PAGE_LOAD).catch(() => {
 				// Invalidation can race during navigation/HMR; ignore failures.
 			});
 		};
-		const bumpFromSocket = (source: string) => {
-			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
-			scheduleDebouncedInvalidateAll(source);
+		function socketPayloadHasProjectId(payload: unknown): boolean {
+			const o = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+			return typeof o?.projectId === 'string' && o.projectId.length > 0;
+		}
+
+		const bumpFromSocket = (source: string, payload?: unknown) => {
+			if (socketPayloadHasProjectId(payload)) {
+				realtimeClientLog('scheduleDebouncedWorkspaceReload', { source });
+				scheduleDebouncedWorkspaceReload(source);
+			} else {
+				realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
+				scheduleDebouncedInvalidateAll(source);
+			}
 		};
 		const bumpFromSse = (source: string) => {
 			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
@@ -101,8 +116,8 @@
 			};
 		}
 
-		const onWorkspace = () => bumpFromSocket('socket:workspace:invalidate');
-		const onReview = () => bumpFromSocket('socket:review:invalidate');
+		const onWorkspace = (payload?: unknown) => bumpFromSocket('socket:workspace:invalidate', payload);
+		const onReview = (payload?: unknown) => bumpFromSocket('socket:review:invalidate', payload);
 		const onReviewerReassigned = (payload: { reason?: string }) => {
 			const msg =
 				typeof payload?.reason === 'string' && payload.reason.trim().length > 0

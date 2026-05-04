@@ -1,7 +1,8 @@
 import {
 	notifyAdminDashboard,
 	notifyProjectReviewUpdate,
-	notifyReviewerReassigned
+	notifyReviewerReassigned,
+	recomputeAndPersistSubmissionProgress
 } from '$lib/server/review-live';
 import {
 	assignReviewPair,
@@ -59,6 +60,8 @@ export const actions: Actions = {
 
 		const res = await adminResetReviewCycle(projectId);
 		if (!res.ok) return fail(400, { message: res.error });
+
+		await recomputeAndPersistSubmissionProgress(projectId);
 
 		notifyProjectReviewUpdate(projectId);
 		notifyAdminDashboard();

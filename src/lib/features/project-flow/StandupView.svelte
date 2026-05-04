@@ -20,6 +20,18 @@
 	let { project = null }: { project?: Proj | null } = $props();
 
 	const app = getApp();
+	const isSubmitter = $derived(app.role === 'sandra');
+	const standupChecklistCount = 5;
+	const standupChecklistComplete = $derived(
+		app.standupItems.length >= standupChecklistCount &&
+			app.standupItems.slice(0, standupChecklistCount).every(Boolean)
+	);
+
+	const standupPersistFingerprint = $derived(
+		`${app.standupWhen}\0${app.standupVoiceChannel}\0${app.standupTakeaways}\0${JSON.stringify(app.standupItems)}\0${JSON.stringify(
+			app.standupTakeawayMessages.map((m) => ({ id: m.id, author: m.author, text: m.text, at: m.at }))
+		)}`
+	);
 
 	const janeName = $derived(getPersonaDisplayLabel('jane'));
 	const joeName = $derived(getPersonaDisplayLabel('joe'));
@@ -57,30 +69,31 @@
 		return `${base} bg-violet-500/[0.1] text-kood-text/95 ring-1 ring-violet-400/40`;
 	}
 
-	async function saveReviewStateToServer(): Promise<boolean> {
+	async function saveReviewStateToServer(opts?: { silent?: boolean }): Promise<boolean> {
 		const pid = project?.id;
 		if (!pid || !browser) return false;
-		return saveReviewStateWithPayloads(
+		const ok = await saveReviewStateWithPayloads(
 			pid,
 			JSON.stringify(exportTestingStateForPersistence()),
 			JSON.stringify(exportCodeReviewWorkspaceForPersistence())
 		);
+		if (!ok && !opts?.silent) pushToast('Save failed — check you are logged in and try again.');
+		return ok;
 	}
 
-	async function submitStandupToServer() {
-		await tick();
-		if (!project?.id) {
-			pushToast(
-				'No project linked — open this screen from your assigned review (signed-in submitter or reviewer).'
-			);
-			return;
-		}
-		threadSaving = true;
-		const ok = await saveReviewStateToServer();
-		threadSaving = false;
-		if (ok) pushToast('Saved to server — everyone sees this after refresh.');
-		else pushToast('Save failed — check you are logged in and try again.');
-	}
+	let standupAutoSaveTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		if (!browser || !isSubmitter || !project?.id) return;
+		void standupPersistFingerprint;
+		if (standupAutoSaveTimer) clearTimeout(standupAutoSaveTimer);
+		standupAutoSaveTimer = setTimeout(() => {
+			standupAutoSaveTimer = undefined;
+			void saveReviewStateToServer({ silent: true });
+		}, 1200);
+		return () => {
+			if (standupAutoSaveTimer) clearTimeout(standupAutoSaveTimer);
+		};
+	});
 
 	async function postTakeaway() {
 		if (!takeawayDraft.trim()) return;
@@ -94,10 +107,10 @@
 		}
 		if (!browser) return;
 		threadSaving = true;
-		const ok = await saveReviewStateToServer();
+		const ok = await saveReviewStateToServer({ silent: true });
 		threadSaving = false;
-		if (ok) pushToast('Posted — synced for everyone.');
-		else pushToast('Posted here, but sync failed — try Save in the batch card.');
+		if (ok) pushToast('Posted — visible to everyone on this project.');
+		else pushToast('Posted here, but sync failed — try again or use Save in your project batch.');
 	}
 
 	$effect(() => {
@@ -127,47 +140,43 @@
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
 		<h3 class="text-sm font-semibold text-kood-text">Meeting details</h3>
-		<div class="mt-4 grid gap-4 sm:grid-cols-2">
-			<label class="block text-xs text-kood-muted">
-				<span class="mb-1 block font-medium text-kood-text/90">Meeting start</span>
-				<input
-					type="datetime-local"
-					class="mt-1 w-full rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text"
-					bind:value={app.standupWhen}
-				/>
-			</label>
-			<label class="block text-xs text-kood-muted">
-				<span class="mb-1 block font-medium text-kood-text/90">Voice channel</span>
-				<input
-					type="text"
-					class="mt-1 w-full rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted"
-					placeholder="Discord voice channel name"
-					bind:value={app.standupVoiceChannel}
-				/>
-			</label>
-		</div>
-		<p class="mt-3 text-xs text-kood-muted/80">Use a short-lived project Discord; archive when the project closes.</p>
+		{#if isSubmitter}
+			<p class="mt-1 text-xs text-kood-muted">You set the time and voice link for the team; reviewers see this read-only.</p>
+			<div class="mt-4 grid gap-4 sm:grid-cols-2">
+				<label class="block text-xs text-kood-muted">
+					<span class="mb-1 block font-medium text-kood-text/90">Meeting start</span>
+					<input
+						type="datetime-local"
+						class="mt-1 w-full rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text"
+						bind:value={app.standupWhen}
+					/>
+				</label>
+				<label class="block text-xs text-kood-muted">
+					<span class="mb-1 block font-medium text-kood-text/90">Voice channel</span>
+					<input
+						type="text"
+						class="mt-1 w-full rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted"
+						placeholder="Discord voice channel name"
+						bind:value={app.standupVoiceChannel}
+					/>
+				</label>
+			</div>
+			<p class="mt-3 text-xs text-kood-muted/80">Use a short-lived project Discord; archive when the project closes.</p>
+		{:else}
+			<p class="mt-1 text-xs text-kood-muted">Set by the submitter ({sandraName}).</p>
+			<dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
+				<div class="rounded-lg border border-kood-border/60 bg-kood-bg/30 px-3 py-2">
+					<dt class="text-xs font-medium text-kood-muted">Meeting start</dt>
+					<dd class="mt-1 text-kood-text/95">{app.standupWhen || '—'}</dd>
+				</div>
+				<div class="rounded-lg border border-kood-border/60 bg-kood-bg/30 px-3 py-2">
+					<dt class="text-xs font-medium text-kood-muted">Voice channel</dt>
+					<dd class="mt-1 break-all text-kood-text/95">{app.standupVoiceChannel || '—'}</dd>
+				</div>
+			</dl>
+		{/if}
 	</section>
 
-	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
-		<h3 class="text-sm font-semibold text-kood-text">Before the call</h3>
-		<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
-			<li>
-				<strong class="text-kood-text/90">Schedule</strong> a ~45 minute meeting after the async sprint categories are
-				all accepted. Add time and place in <strong class="text-kood-text/90">Meeting details</strong> above — that
-				phase stays separate so async review and the live call stay distinct.
-			</li>
-			<li>
-				<strong class="text-kood-text/90">Prepare</strong> individually before the call. Align on who already looked
-				at which parts of the repo (here: {janeName} → Security &amp; Correctness, {joeName} → Performance &amp;
-				Structure &amp; architecture).
-			</li>
-			<li>
-				<strong class="text-kood-text/90">During the session</strong> take notes. Anyone can facilitate; capture
-				takeaways in the thread below so they stay actionable.
-			</li>
-		</ol>
-	</section>
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
 		<h3 class="text-sm font-semibold text-kood-text">Discussion guide (on the call)</h3>
@@ -180,8 +189,7 @@
 				<strong class="text-kood-text">{janeName} — assigned categories</strong>
 				<span class="text-kood-muted"> (Security, Correctness)</span>
 				<p class="mt-1 text-kood-muted">
-					Walk through main findings, feedback sent to {sandraName}, and what changed since. Peers ask clarifying
-					questions only — you own the narrative for your scope.
+					Walk through main findings, feedback sent to {sandraName}, and what changed since. 
 				</p>
 			</li>
 			<li>
@@ -194,9 +202,7 @@
 			<li>
 				<strong class="text-kood-text">Cross-review awareness</strong>
 				<p class="mt-1 text-kood-muted">
-					How did each reviewer show up in the <em>other</em> person’s themes? (e.g. security or correctness angles
-					on performance work, or scalability and layering risks in sensitive paths.) Aim for constructive, specific
-					examples.
+					How did each reviewer show up in the <em>other</em> person’s themes? 
 				</p>
 			</li>
 			<li>
@@ -219,8 +225,8 @@
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
 		<h3 class="text-sm font-semibold text-kood-text">Takeaways thread</h3>
 		<p class="mt-2 text-xs text-kood-muted">
-			Short posts from each participant (synced when a project is linked). Timestamps are local to the poster’s
-			browser.
+			Short posts from anyone on the trio. After you post, it syncs to the server so the others see it here (same idea
+			as a small group chat). Timestamps come from when each message was saved.
 		</p>
 		<div
 			bind:this={threadScrollEl}
@@ -263,45 +269,52 @@
 				onclick={() => postTakeaway()}>Post</button
 			>
 		</div>
-		{#if project?.id}
-			<button
-				type="button"
-				disabled={threadSaving}
-				class="mt-3 text-xs font-medium text-kood-accent underline decoration-kood-accent/40 disabled:opacity-40"
-				onclick={() => submitStandupToServer()}>Sync meeting details &amp; thread to server</button
-			>
-		{/if}
 	</section>
 
 	<section class="rounded-xl border border-kood-border bg-kood-surface p-5">
 		<h3 class="text-sm font-semibold text-kood-text">Meeting summary (long form)</h3>
 		<p class="mt-2 text-xs text-kood-muted">
-			Good notes speed up learning and future reviews. Be clear, specific, and actionable.
+			{#if isSubmitter}
+				One place for the fuller write-up after the call (what was decided, follow-ups). The thread above is better for
+				short, in-the-moment posts — both save automatically when this project is linked.
+			{:else}
+				Written by the submitter after the call. You can read it here; reviewers do not edit this block.
+			{/if}
 		</p>
 		<p class="mt-3 text-xs font-medium text-kood-text/90">Free-form notes</p>
 		<p class="mt-1 text-[11px] text-kood-muted">
 			What was discussed · Key feedback · Action items · Participants’ reflection
 		</p>
 		<textarea
-			class="mt-2 min-h-[140px] w-full resize-y rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted/70"
+			readonly={!isSubmitter}
+			class={`mt-2 min-h-[140px] w-full resize-y rounded-lg border border-kood-border bg-kood-bg px-3 py-2 text-sm text-kood-text placeholder:text-kood-muted/70 ${!isSubmitter ? 'cursor-default opacity-90' : ''}`}
 			maxlength={maxTakeaways}
 			placeholder="We discussed the following points in the meeting…"
 			bind:value={app.standupTakeaways}
 		></textarea>
-		<p class="mt-1 text-right text-[11px] text-kood-muted">
-			{app.standupTakeaways.length} / {maxTakeaways}
-		</p>
+		{#if isSubmitter}
+			<p class="mt-1 text-right text-[11px] text-kood-muted">
+				{app.standupTakeaways.length} / {maxTakeaways}
+			</p>
+		{/if}
 	</section>
 
 	<div>
 		<h3 class="text-sm font-semibold text-kood-text">Checklist</h3>
-		<p class="mt-1 text-xs text-kood-muted">Check each item when it is true for this call (submitter checklist).</p>
+		<p class="mt-1 text-xs text-kood-muted">
+			{#if isSubmitter}
+				Check each item when it is true for this call. Everyone can read it; only you can tick boxes.
+			{:else}
+				Submitter checklist — read-only for reviewers.
+			{/if}
+		</p>
 		<ul class="mt-4 space-y-3">
 			{#each agenda as line, i (i)}
 				<li class="flex items-start gap-3 rounded-xl border border-kood-border bg-kood-bg/40 p-4">
 					<input
 						type="checkbox"
-						class="mt-1 h-4 w-4 shrink-0 rounded border-kood-border bg-kood-surface-raised text-kood-accent focus:ring-kood-accent"
+						disabled={!isSubmitter}
+						class="mt-1 h-4 w-4 shrink-0 rounded border-kood-border bg-kood-surface-raised text-kood-accent focus:ring-kood-accent disabled:cursor-not-allowed disabled:opacity-60"
 						checked={app.standupItems[i]}
 						onchange={() => toggleStandup(i)}
 					/>
@@ -311,9 +324,21 @@
 		</ul>
 	</div>
 
-	<button
-		type="button"
-		class="rounded-full bg-kood-accent px-5 py-2.5 text-sm font-bold text-kood-accent-foreground"
-		onclick={() => completeStandup()}>Complete standup</button
-	>
+	<div class="space-y-2">
+		{#if !isSubmitter}
+			<p class="text-xs text-kood-muted">
+				You cannot tick the checklist — only {sandraName} can. When every item is checked off for this call, use
+				<strong class="text-kood-text/90">Complete standup</strong> here as well, then you will land on
+				<strong class="text-kood-text/90">Accept project</strong> and can continue to 360° feedback.
+			</p>
+		{:else if !standupChecklistComplete}
+			<p class="text-xs text-kood-muted">Complete every checklist item above — then this button unlocks.</p>
+		{/if}
+		<button
+			type="button"
+			disabled={!standupChecklistComplete}
+			class="rounded-full bg-kood-accent px-5 py-2.5 text-sm font-bold text-kood-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
+			onclick={() => completeStandup()}>Complete standup</button
+		>
+	</div>
 </div>

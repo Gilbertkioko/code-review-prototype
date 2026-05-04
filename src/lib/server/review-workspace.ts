@@ -1,6 +1,10 @@
 import { CATEGORIES } from '$lib/constants';
 import type { CategorySession, TestingItem } from '$lib/types';
-import { parseCodeReviewSavePayload } from './code-review-payload';
+import {
+	mergeStandupTakeawayMessageLists,
+	parseCodeReviewSavePayload,
+	parseStandupSnapshotFromCodeReviewJson
+} from './code-review-payload';
 import { and, asc, desc, eq, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { hash } from '@node-rs/argon2';
@@ -381,12 +385,18 @@ export async function markProjectCompleted(projectId: string) {
 		.where(eq(project.id, projectId));
 }
 
-/** Admin: clear Testing + Code review saved progress/messages to restart the cycle. */
+/** Admin: clear Testing + Code review saved progress/messages to restart the cycle (including from `completed`). */
 export async function adminResetReviewCycle(projectId: string): Promise<{ ok: true } | { ok: false; error: string }> {
 	const db = getDb();
 	const p = await getProjectById(projectId);
 	if (!p) return { ok: false, error: 'Project not found' };
-	if (p.status === 'completed') return { ok: false, error: 'Completed projects cannot be reset' };
+
+	const pair = await getPairForProject(projectId);
+	const nextStatus: ProjectStatus = pair
+		? 'review_active'
+		: p.giteaUrl?.trim()
+			? 'repo_submitted'
+			: 'awaiting_link';
 
 	const now = Date.now();
 
@@ -404,7 +414,7 @@ export async function adminResetReviewCycle(projectId: string): Promise<{ ok: tr
 			.set({
 				testingJson: null,
 				codeReviewJson: null,
-				submissionProgress: 'testing',
+				status: nextStatus,
 				updatedAt: now
 			})
 			.where(eq(project.id, projectId));
@@ -443,15 +453,75 @@ export async function listReviewerCheckinsForProject(projectId: string) {
 		.orderBy(asc(reviewerCheckin.acceptedAt));
 }
 
-/** Persists prototype Testing + Code review sprint state (threads, verdicts, rounds). */
-export async function saveProjectReviewWorkspace(projectId: string, testingJson: string, codeReviewJson: string) {
-	const now = Date.now();
-	await getDb()
-		.update(project)
-		.set({ testingJson, codeReviewJson, updatedAt: now })
-		.where(eq(project.id, projectId));
+export type ReviewWorkspaceSaverRole = 'submitter' | 'reviewer' | 'admin';
+
+/** Merges standup takeaway thread with DB so each persona's posts are not lost on last-write-wins saves. */
+function mergePersistedCodeReviewJson(
+	incomingJson: string,
+	storedJson: string | null,
+	saverRole: ReviewWorkspaceSaverRole
+): string {
+	let inc: Record<string, unknown>;
 	try {
-		await syncReviewRelationalTablesFromPayload(projectId, testingJson, codeReviewJson);
+		inc = JSON.parse(incomingJson) as Record<string, unknown>;
+	} catch {
+		return incomingJson;
+	}
+	if (!inc || typeof inc !== 'object') return incomingJson;
+
+	const existSnap = storedJson ? parseStandupSnapshotFromCodeReviewJson(storedJson) : null;
+	const incSnap = parseStandupSnapshotFromCodeReviewJson(incomingJson);
+	const mergedMsgs = mergeStandupTakeawayMessageLists(
+		existSnap?.standupTakeawayMessages ?? [],
+		incSnap?.standupTakeawayMessages ?? []
+	);
+
+	const standup =
+		inc.standup && typeof inc.standup === 'object'
+			? { ...(inc.standup as Record<string, unknown>) }
+			: ({} as Record<string, unknown>);
+
+	if (saverRole === 'reviewer' && existSnap) {
+		standup.standupWhen = existSnap.standupWhen;
+		standup.standupVoiceChannel = existSnap.standupVoiceChannel;
+		standup.standupTakeaways = existSnap.standupTakeaways;
+		standup.standupItems = existSnap.standupItems;
+	} else if (incSnap) {
+		standup.standupWhen = incSnap.standupWhen;
+		standup.standupVoiceChannel = incSnap.standupVoiceChannel;
+		standup.standupTakeaways = incSnap.standupTakeaways;
+		standup.standupItems = incSnap.standupItems;
+	}
+	standup.standupTakeawayMessages = mergedMsgs;
+	inc.standup = standup;
+	return JSON.stringify(inc);
+}
+
+/** Persists prototype Testing + Code review sprint state (threads, verdicts, rounds). */
+export async function saveProjectReviewWorkspace(
+	projectId: string,
+	testingJson: string,
+	codeReviewJson: string,
+	opts?: { saverRole?: ReviewWorkspaceSaverRole }
+) {
+	const saverRole = opts?.saverRole ?? 'submitter';
+	const now = Date.now();
+	let mergedCodeReviewJson = codeReviewJson;
+	await getDb().transaction(async (tx) => {
+		const rows = await tx
+			.select({ codeReviewJson: project.codeReviewJson })
+			.from(project)
+			.where(eq(project.id, projectId))
+			.limit(1);
+		const stored = rows[0]?.codeReviewJson ?? null;
+		mergedCodeReviewJson = mergePersistedCodeReviewJson(codeReviewJson, stored, saverRole);
+		await tx
+			.update(project)
+			.set({ testingJson, codeReviewJson: mergedCodeReviewJson, updatedAt: now })
+			.where(eq(project.id, projectId));
+	});
+	try {
+		await syncReviewRelationalTablesFromPayload(projectId, testingJson, mergedCodeReviewJson);
 	} catch (e) {
 		console.error('[review-workspace] syncReviewRelationalTablesFromPayload', e);
 	}

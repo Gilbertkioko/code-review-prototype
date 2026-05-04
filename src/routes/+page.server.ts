@@ -26,14 +26,16 @@ import {
 	startNextProjectBatch,
 	submitProjectRepoUrl
 } from '$lib/server/review-workspace';
+import { WORKSPACE_PAGE_LOAD } from '$lib/workspaceLoadDependency';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, depends }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
+	depends(WORKSPACE_PAGE_LOAD);
 	const u = locals.user;
 	if (u.role === 'submitter') {
 		let projectRow = await ensureActiveProjectForSubmitter(u.id);
@@ -170,7 +172,9 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid code review payload' });
 		}
 
-		await saveProjectReviewWorkspace(projectId, testingPayload, codeReviewPayload);
+		const saverRole: 'submitter' | 'reviewer' | 'admin' =
+			u.role === 'reviewer' ? 'reviewer' : u.role === 'submitter' ? 'submitter' : 'admin';
+		await saveProjectReviewWorkspace(projectId, testingPayload, codeReviewPayload, { saverRole });
 		await refreshProjectReviewSnapshotsFromRelational(projectId);
 		await recomputeAndPersistSubmissionProgress(projectId);
 		notifyProjectReviewUpdate(projectId);

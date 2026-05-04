@@ -268,11 +268,26 @@ export async function buildCodeReviewSnapshotJson(
 				}));
 		}
 	}
-	return JSON.stringify({
-		version: 1 as const,
+	const out: Record<string, unknown> = {
+		version: 1,
 		codeReviewRound,
 		categorySessions: sessions
-	});
+	};
+	/* Standup + 360° live only in JSON blobs today — relational rebuild must not wipe them (admin + clients rely on this). */
+	if (previousJson) {
+		try {
+			const prevRoot = JSON.parse(previousJson) as Record<string, unknown>;
+			if (prevRoot.standup && typeof prevRoot.standup === 'object') {
+				out.standup = prevRoot.standup;
+			}
+			if (prevRoot.feedback360 && typeof prevRoot.feedback360 === 'object') {
+				out.feedback360 = prevRoot.feedback360;
+			}
+		} catch {
+			/* ignore */
+		}
+	}
+	return JSON.stringify(out);
 }
 
 export async function refreshProjectReviewSnapshotsFromRelational(projectId: string) {

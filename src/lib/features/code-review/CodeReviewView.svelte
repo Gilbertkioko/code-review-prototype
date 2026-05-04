@@ -20,11 +20,4 @@
 
 	<CodeReview7Day />
 
-	<details class="rounded-xl border border-kood-border bg-kood-surface p-4 text-sm text-kood-muted">
-		<summary class="cursor-pointer text-kood-text/90">
-			Reviewer training hints (from {sandraName}'s future ratings)
-		</summary>
-		<p class="mt-2">{trainingBlurbFor('jane')}</p>
-		<p class="mt-1">{trainingBlurbFor('joe')}</p>
-	</details>
 </div>

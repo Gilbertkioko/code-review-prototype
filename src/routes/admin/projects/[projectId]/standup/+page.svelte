@@ -41,18 +41,21 @@
 		<p class="text-sm text-kood-muted">No standup block in the saved workspace yet.</p>
 	{:else}
 		<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-			<dl class="grid gap-2 text-xs sm:grid-cols-2">
-				<div>
+			<h2 class="text-sm font-semibold text-kood-text">Meeting details</h2>
+			<dl class="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+				<div class="rounded-lg border border-kood-border/50 bg-kood-bg/20 px-3 py-2">
 					<dt class="text-kood-muted">Meeting start</dt>
-					<dd class="mt-0.5 text-kood-text/90">{standup.standupWhen || '—'}</dd>
+					<dd class="mt-0.5 text-sm text-kood-text/90">{standup.standupWhen || '—'}</dd>
 				</div>
-				<div>
+				<div class="rounded-lg border border-kood-border/50 bg-kood-bg/20 px-3 py-2">
 					<dt class="text-kood-muted">Voice channel</dt>
-					<dd class="mt-0.5 text-kood-text/90">{standup.standupVoiceChannel || '—'}</dd>
+					<dd class="mt-0.5 break-all text-sm text-kood-text/90">{standup.standupVoiceChannel || '—'}</dd>
 				</div>
 			</dl>
-			<div class="mt-6">
-				<p class="text-xs font-medium text-kood-muted">Takeaways thread</p>
+
+			<div class="mt-8 border-t border-kood-border/50 pt-6">
+				<h2 class="text-sm font-semibold text-kood-text">Takeaways thread</h2>
+				<p class="mt-1 text-xs text-kood-muted">Posts from submitter and reviewers (newest in list order).</p>
 				{#if standup.standupTakeawayMessages.length > 0}
 					<div class="mt-3 divide-y divide-kood-border/40 rounded-xl border border-kood-border/70 bg-kood-bg/30">
 						{#each standup.standupTakeawayMessages as m (m.id)}
@@ -79,17 +82,26 @@
 							</div>
 						{/each}
 					</div>
-				{:else if standup.standupTakeaways.trim()}
+				{:else}
+					<p class="mt-3 text-sm text-kood-muted">No thread posts yet.</p>
+				{/if}
+			</div>
+
+			<div class="mt-8 border-t border-kood-border/50 pt-6">
+				<h2 class="text-sm font-semibold text-kood-text">Meeting summary (long form)</h2>
+				<p class="mt-1 text-xs text-kood-muted">Submitter’s consolidated notes after the call.</p>
+				{#if standup.standupTakeaways.trim()}
 					<pre
 						class="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-kood-border/70 bg-kood-bg/30 px-4 py-3 text-sm text-kood-text/90"
 					>{standup.standupTakeaways}</pre>
 				{:else}
-					<p class="mt-2 text-sm text-kood-muted">—</p>
+					<p class="mt-3 text-sm text-kood-muted">—</p>
 				{/if}
 			</div>
-			<div class="mt-6">
-				<p class="text-xs font-medium text-kood-muted">Submitter checklist</p>
-				<ul class="mt-2 space-y-2 text-xs text-kood-text/90">
+
+			<div class="mt-8 border-t border-kood-border/50 pt-6">
+				<h2 class="text-sm font-semibold text-kood-text">Submitter checklist</h2>
+				<ul class="mt-3 space-y-2 text-xs text-kood-text/90">
 					{#each checklistTitles as title, i (i)}
 						<li class="flex gap-2 rounded-lg border border-kood-border/50 bg-kood-bg/20 px-2 py-1.5">
 							<span class="shrink-0 text-kood-muted" aria-hidden="true">{standup.standupItems[i] ? '✓' : '·'}</span>

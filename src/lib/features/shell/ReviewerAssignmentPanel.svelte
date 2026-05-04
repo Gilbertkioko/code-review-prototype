@@ -102,8 +102,7 @@
 						{submitterName} can find the same spot and know what to fix.
 					</li>
 					<li>
-						<strong class="text-kood-text">Ground it in substance.</strong> Prefer requirements, acceptance criteria, or
-						clear risk over vague dislike—so Declines and thread notes read as actionable requests, not venting.
+						<strong class="text-kood-text">Ground it in substance.</strong>Declines and thread notes read as actionable requests, not venting.
 					</li>
 					<li>
 						<strong class="text-kood-text">Pause if you’re under pressure.</strong> Short, factual feedback is easier to
