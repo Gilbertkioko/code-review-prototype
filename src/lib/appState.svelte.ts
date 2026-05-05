@@ -473,6 +473,23 @@ const data = $state(createLiveInitialSnapshot());
 /** Per-thread POST in flight (live sync) — prevents double-submit and drives send-button UI. */
 const codeReviewCommentSending = $state<Record<string, boolean>>({});
 const testingCommentSending = $state<Record<string, boolean>>({});
+let aiReviewerAssist = $state<{
+	functionalById: Record<
+		string,
+		{ question: string; verdict: 'accept' | 'decline'; evidence: string }
+	>;
+	codeReviewById: Record<
+		string,
+		{
+			question: string;
+			verdict: 'accept' | 'decline';
+			severity: 'low' | 'medium' | 'high';
+			finding: string;
+			evidence: string;
+			recommendation: string;
+		}
+	>;
+} | null>(null);
 
 function codeReviewSendLockKey(catId: string, obsId: string, who: Role) {
 	return `${catId}:${obsId}:${who}`;
@@ -614,6 +631,62 @@ export function setReviewerAssignmentAcceptedFromServer(next: { jane: boolean; j
 	data.reviewerAssignmentAccepted = { jane: Boolean(next.jane), joe: Boolean(next.joe) };
 }
 
+export function setAiReviewerAssistFromServer(next: {
+	functionalById: Record<string, { question: string; verdict: 'accept' | 'decline'; evidence: string }>;
+	codeReviewById: Record<
+		string,
+		{
+			question: string;
+			verdict: 'accept' | 'decline';
+			severity: 'low' | 'medium' | 'high';
+			finding: string;
+			evidence: string;
+			recommendation: string;
+		}
+	>;
+} | null) {
+	aiReviewerAssist = next;
+}
+
+export function testingAiDisagreement(
+	itemId: string,
+	reviewer: 'jane' | 'joe'
+): { question: string; evidence: string } | null {
+	const item = data.testingItems.find((t) => t.id === itemId);
+	if (!item) return null;
+	const ai = aiReviewerAssist?.functionalById[itemId];
+	if (!ai) return null;
+	if (item[reviewer] !== 'accept') return null;
+	if (ai.verdict !== 'decline') return null;
+	return { question: ai.question, evidence: ai.evidence };
+}
+
+export function codeReviewAiDisagreement(
+	catId: string,
+	obsId: string,
+	reviewer: 'jane' | 'joe'
+): {
+	question: string;
+	severity: 'low' | 'medium' | 'high';
+	finding: string;
+	evidence: string;
+	recommendation: string;
+} | null {
+	const row = session(catId).observationRows[obsId];
+	if (!row) return null;
+	const ai = aiReviewerAssist?.codeReviewById[`${catId}:${obsId}`];
+	if (!ai) return null;
+	if (row[reviewer] !== 'accept') return null;
+	if (ai.verdict !== 'decline') return null;
+	return {
+		question: ai.question,
+		severity: ai.severity,
+		finding: ai.finding,
+		evidence: ai.evidence,
+		recommendation: ai.recommendation
+	};
+}
+
 export function confirmStartProject() {
 	data.projectStarted = true;
 	data.phase = 'project_completion';
@@ -648,6 +721,9 @@ export function setTestingVerdict(itemId: string, reviewer: 'jane' | 'joe', verd
 		return;
 	}
 	item[reviewer] = verdict;
+	if (verdict === 'accept' && testingAiDisagreement(itemId, reviewer)) {
+		pushToast('AI flagged this check as decline. Re-check your verdict and evidence.');
+	}
 	const collab = getActiveCollaboration();
 	if (collab?.projectId && (verdict === 'accept' || verdict === 'decline')) {
 		void postFormReviewAction('setTestingVerdict', {
@@ -995,6 +1071,9 @@ export function setCodeReviewVerdict(
 	const row = session(catId).observationRows[obsId];
 	if (!row) return;
 	row[reviewer] = decision;
+	if (decision === 'accept' && codeReviewAiDisagreement(catId, obsId, reviewer)) {
+		pushToast('AI flagged this observation as decline. Re-check your verdict and reasoning.');
+	}
 	const collab = getActiveCollaboration();
 	if (collab?.projectId) {
 		void postFormReviewAction('setCodeReviewVerdict', {

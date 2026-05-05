@@ -9,6 +9,7 @@
 		importCategorySessionsFromServer,
 		importTestingStateFromServer,
 		reviewerNeedsAssignmentGate,
+		setAiReviewerAssistFromServer,
 		setCategoryAssigneeOverride,
 		setReviewerAssignmentAcceptedFromServer,
 		setRole,
@@ -94,6 +95,16 @@ let hadReviewerProject = $state(false);
 			return () => setCategoryAssigneeOverride(null);
 		}
 		setCategoryAssigneeOverride(null);
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
+		if (w.kind === 'reviewer') {
+			setAiReviewerAssistFromServer(w.aiReviewerAssist ?? null);
+			return () => setAiReviewerAssistFromServer(null);
+		}
+		setAiReviewerAssistFromServer(null);
 	});
 
 	$effect(() => {

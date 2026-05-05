@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+import { verdictChipClass, verdictLabel } from '$lib/features/testing/testingUtils';
 
 	let { data } = $props();
 
@@ -128,59 +129,82 @@
 	{/if}
 
 	{#if ai?.result}
-		<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Overall summary</h2>
-			<p class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kood-text/95">{ai.result.overall_summary}</p>
-		</section>
+		<section class="space-y-4">
+			<details class="overflow-hidden rounded-xl border border-kood-border bg-kood-surface/80" open>
+				<summary class="cursor-pointer px-5 py-4 text-sm font-semibold uppercase tracking-wide text-kood-muted">
+					Overall summary
+				</summary>
+				<div class="border-t border-kood-border px-5 py-4 md:px-6">
+					<p class="whitespace-pre-wrap text-sm leading-relaxed text-kood-text/95">{ai.result.overall_summary}</p>
+				</div>
+			</details>
 
-		<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Functional testing</h2>
-			<div class="mt-3 space-y-3">
-				{#each ai.result.functional_testing as row (row.question_id)}
-					<div class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-3">
-						<p class="text-xs text-kood-muted">{row.question_id}</p>
-						<p class="mt-1 text-sm font-medium text-kood-text">{row.question}</p>
-						<p class="mt-1 text-xs text-kood-muted">Verdict: <span class="font-semibold text-kood-text/90">{row.verdict}</span></p>
-						<p class="mt-2 whitespace-pre-wrap text-sm text-kood-text/90">{row.evidence}</p>
-					</div>
-				{/each}
-			</div>
-		</section>
-
-		<section class="rounded-xl border border-kood-border bg-kood-surface/80 p-5 md:p-6">
-			<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Code review findings</h2>
-			<div class="mt-3 space-y-3">
-				{#each ai.result.code_review as row (row.question_id)}
-					<div class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-3">
-						<p class="text-xs text-kood-muted">
-							{row.question_id} · verdict {row.verdict} · severity {row.severity}
-						</p>
-						<p class="mt-1 text-sm font-medium text-kood-text">{row.question}</p>
-						<p class="mt-2 text-sm text-kood-text/90"><strong>Finding:</strong> {row.finding}</p>
-						<p class="mt-1 whitespace-pre-wrap text-sm text-kood-text/90"><strong>Evidence:</strong> {row.evidence}</p>
-						<p class="mt-1 whitespace-pre-wrap text-sm text-kood-text/90"><strong>Recommendation:</strong> {row.recommendation}</p>
-					</div>
-				{/each}
-			</div>
-		</section>
-
-		<section class="grid gap-4 lg:grid-cols-2">
-			<div class="rounded-xl border border-kood-border bg-kood-surface/80 p-5">
-				<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Key risks</h2>
-				<ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-kood-text/95">
-					{#each ai.result.key_risks as risk, i (`risk-${i}`)}
-						<li>{risk}</li>
+			<details class="overflow-hidden rounded-xl border border-kood-border bg-kood-surface/80" open>
+				<summary class="cursor-pointer px-5 py-4 text-sm font-semibold uppercase tracking-wide text-kood-muted">
+					Functional testing responses ({ai.result.functional_testing.length})
+				</summary>
+				<div class="space-y-3 border-t border-kood-border px-5 py-4 md:px-6">
+					{#each ai.result.functional_testing as row (row.question_id)}
+						<div class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-3">
+							<div class="flex flex-wrap items-center gap-2">
+								<p class="text-xs text-kood-muted">{row.question_id}</p>
+								<span class="rounded px-2 py-0.5 text-[11px] font-medium ring-1 {verdictChipClass(row.verdict)}">
+									{verdictLabel(row.verdict)}
+								</span>
+							</div>
+							<p class="mt-1 text-sm font-medium text-kood-text">{row.question}</p>
+							<p class="mt-2 whitespace-pre-wrap text-sm text-kood-text/90">{row.evidence}</p>
+						</div>
 					{/each}
-				</ul>
-			</div>
-			<div class="rounded-xl border border-kood-border bg-kood-surface/80 p-5">
-				<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Action items</h2>
-				<ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-kood-text/95">
-					{#each ai.result.action_items as item, i (`action-${i}`)}
-						<li>{item}</li>
+				</div>
+			</details>
+
+			<details class="overflow-hidden rounded-xl border border-kood-border bg-kood-surface/80" open>
+				<summary class="cursor-pointer px-5 py-4 text-sm font-semibold uppercase tracking-wide text-kood-muted">
+					Code review findings ({ai.result.code_review.length})
+				</summary>
+				<div class="space-y-3 border-t border-kood-border px-5 py-4 md:px-6">
+					{#each ai.result.code_review as row (row.question_id)}
+						<div class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-3">
+							<div class="flex flex-wrap items-center gap-2 text-xs text-kood-muted">
+								<span>{row.question_id}</span>
+								<span class="rounded px-2 py-0.5 text-[11px] font-medium ring-1 {verdictChipClass(row.verdict)}">
+									{verdictLabel(row.verdict)}
+								</span>
+								<span class="rounded px-2 py-0.5 ring-1 ring-kood-border/80">Severity {row.severity}</span>
+							</div>
+							<p class="mt-1 text-sm font-medium text-kood-text">{row.question}</p>
+							<p class="mt-2 text-sm text-kood-text/90"><strong>Finding:</strong> {row.finding}</p>
+							<p class="mt-1 whitespace-pre-wrap text-sm text-kood-text/90"><strong>Evidence:</strong> {row.evidence}</p>
+							<p class="mt-1 whitespace-pre-wrap text-sm text-kood-text/90"><strong>Recommendation:</strong> {row.recommendation}</p>
+						</div>
 					{/each}
-				</ul>
-			</div>
+				</div>
+			</details>
+
+			<details class="overflow-hidden rounded-xl border border-kood-border bg-kood-surface/80">
+				<summary class="cursor-pointer px-5 py-4 text-sm font-semibold uppercase tracking-wide text-kood-muted">
+					Key risks and action items
+				</summary>
+				<div class="grid gap-4 border-t border-kood-border px-5 py-4 md:px-6 lg:grid-cols-2">
+					<div class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-4">
+						<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Key risks</h2>
+						<ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-kood-text/95">
+							{#each ai.result.key_risks as risk, i (`risk-${i}`)}
+								<li>{risk}</li>
+							{/each}
+						</ul>
+					</div>
+					<div class="rounded-lg border border-kood-border/60 bg-kood-bg/25 p-4">
+						<h2 class="text-sm font-semibold uppercase tracking-wide text-kood-muted">Action items</h2>
+						<ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-kood-text/95">
+							{#each ai.result.action_items as item, i (`action-${i}`)}
+								<li>{item}</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+			</details>
 		</section>
 	{/if}
 </div>

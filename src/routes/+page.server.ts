@@ -1,5 +1,5 @@
 import { lucia } from '$lib/server/auth';
-import { enqueueAiReviewForProject } from '$lib/server/ai-review';
+import { enqueueAiReviewForProject, getProjectAiReview } from '$lib/server/ai-review';
 import {
 	appendCodeReviewMessageLive,
 	appendTestingMessageLive,
@@ -81,6 +81,35 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 			pair && projectRow ? reviewPersonaForUser(pair, u.id, projectRow.submitterId) : null;
 		const reviewRoom =
 			pair && projectRow ? await reviewRoomDisplayLabels(projectRow.submitterId, pair) : null;
+		const aiReview = projectRow ? await getProjectAiReview(projectRow.id) : null;
+		const aiReviewerAssist =
+			aiReview?.status === 'completed' && aiReview.result
+				? {
+						functionalById: Object.fromEntries(
+							aiReview.result.functional_testing.map((row) => [
+								row.question_id,
+								{
+									question: row.question,
+									verdict: row.verdict,
+									evidence: row.evidence
+								}
+							])
+						),
+						codeReviewById: Object.fromEntries(
+							aiReview.result.code_review.map((row) => [
+								row.question_id,
+								{
+									question: row.question,
+									verdict: row.verdict,
+									severity: row.severity,
+									finding: row.finding,
+									evidence: row.evidence,
+									recommendation: row.recommendation
+								}
+							])
+						)
+					}
+				: null;
 		return {
 			workspace: {
 				kind: 'reviewer' as const,
@@ -91,6 +120,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 				categoryMap,
 				persona,
 				reviewRoom,
+				aiReviewerAssist,
 				canMarkComplete: false as const
 			}
 		};
