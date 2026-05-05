@@ -12,7 +12,7 @@ import { promisify } from 'node:util';
 import { getDb } from './db';
 import { aiReviewCache, aiReviewJob, projectAiReview } from './db/schema';
 
-export const AI_REVIEW_PROMPT_VERSION = 'v2';
+export const AI_REVIEW_PROMPT_VERSION = 'v3';
 export const AI_REVIEW_MODEL = 'claude-haiku-4-5-20251001';
 /** Long structured reviews exceed 4k tokens; truncated JSON fails to parse. */
 const AI_REVIEW_MAX_OUTPUT_TOKENS = 16_384;
@@ -312,7 +312,7 @@ async function callClaudeForReview(params: {
 	}
 
 	const prompt = [
-		'You are a strict software reviewer.',
+		'You are a thorough but fair software reviewer.',
 		'Review the provided repository source files and answer the supplied question sets.',
 		'Respond with valid JSON only (no markdown, no extra text, no code fences).',
 		'JSON schema:',
@@ -323,8 +323,10 @@ async function callClaudeForReview(params: {
 		'  "key_risks": string[],',
 		'  "action_items": string[]',
 		'}',
-		'Use verdict="accept" only when the criterion is correctly implemented and works.',
-		'Use verdict="decline" when the criterion is missing, incorrect, or not working.',
+		'Functional testing verdict rule: use verdict="accept" only when the criterion is correctly implemented and works; otherwise use verdict="decline".',
+		'Code review verdict rule: use verdict="accept" when the guiding question is mostly met at a satisfactory level, even if minor issues exist.',
+		'Code review verdict rule: use verdict="decline" when the requirement is clearly not met, or major/security-critical gaps make it unsatisfactory.',
+		'Be thorough, use your judgement, and do not be overly harsh when issues are minor.',
 		`Repository URL: ${params.repoUrl}`,
 		`Repository files provided: ${params.repoFileCount}`,
 		`Repository source text:\n${params.repoContextText}`,
