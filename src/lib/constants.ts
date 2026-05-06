@@ -25,18 +25,18 @@ export const CATEGORIES: CategoryDef[] = [
 		observations: [
 			{
 				id: 's1',
-				text: 'Input validation — Verify that race session and driver inputs are validated before being accepted by the server.',
-				submitterText: 'Your project validates race session and driver inputs before processing them.'
+				text: 'Input validation — Ensure that lo in credentials are validated before being accepted by the server.',
+				submitterText: 'Your project validates login credentials before processing them.'
 			},
 			{
 				id: 's2',
-				text: 'Access control — Verify that the Front Desk, Race Control, and Lap-line Tracker require valid access keys before connecting.',
-				submitterText: 'Your project requires valid access keys for protected employee interfaces.'
+				text: 'Access control - Ensure that valid credentials for a front desk admin cannot access the race control interface.',
+				submitterText: 'Your code prevents front desk admins from accessing the race control interface.'
 			},
 			{
 				id: 's3',
-				text: 'Mode integrity — Verify that unauthorized clients cannot change race mode or inject flag state updates.',
-				submitterText: 'Your system prevents unauthorized clients from changing race mode or flag status.'
+				text: 'Pre-connection auth - Ensure employee routes (/front-desk, /race-control, /lap-line-tracker) require an access key before Socket.IO connection is established.',
+				submitterText: 'Your code requires an access key before Socket.IO connection is established.'
 			},
 			{
 				id: 's4',
@@ -65,8 +65,8 @@ export const CATEGORIES: CategoryDef[] = [
 			},
 			{
 				id: 'cr2',
-				text: 'Driver management — Verify driver names are unique within a session and can be added, edited, and removed before the race starts.',
-				submitterText: 'Your code enforces unique driver names in a session and supports driver management before the race starts.'
+				text: 'Driver management — Verify driver names are unique within a session and can be added, edited, and removed before the race starts. Also check if the records are persisted between server restarts.',
+				submitterText: 'Your code enforces unique driver names in a session and supports driver management before the race starts. The records are also persisted between server restarts.'
 			},
 			{
 				id: 'cr3',

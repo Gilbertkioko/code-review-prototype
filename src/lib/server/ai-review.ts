@@ -591,7 +591,12 @@ export async function enqueueAiReviewForProject(
 		.where(eq(project.id, projectId))
 		.limit(1);
 	const projectScope = projectRows[0]?.instructions?.trim() ?? '';
-	const questionsHash = computeQuestionsHash(questionsSnapshot, projectScope);
+	const baseQuestionsHash = computeQuestionsHash(questionsSnapshot, projectScope);
+	// Force-fresh admin reruns must bypass all cache lookups, including worker-time checks.
+	// Keep the base hash for normal runs; add a nonce only for explicit forceFresh requests.
+	const questionsHash = opts?.forceFresh
+		? `${baseQuestionsHash}:fresh:${Date.now()}`
+		: baseQuestionsHash;
 
 	if (!opts?.forceFresh) {
 		const hit = await latestCompletedCache(repoUrlNormalized, questionsHash);
@@ -637,9 +642,12 @@ export async function enqueueAiReviewForProject(
 
 export async function hasCompletedReviewForRepo(repoUrl: string): Promise<boolean> {
 	const repoUrlNormalized = normalizeRepoUrl(repoUrl);
-	const qh = computeQuestionsHash(buildQuestionsSnapshot());
-	const hit = await latestCompletedCache(repoUrlNormalized, qh);
-	return Boolean(hit);
+	const rows = await getDb()
+		.select({ id: aiReviewCache.id })
+		.from(aiReviewCache)
+		.where(and(eq(aiReviewCache.repoUrlNormalized, repoUrlNormalized), eq(aiReviewCache.status, 'completed')))
+		.limit(1);
+	return Boolean(rows[0]);
 }
 
 export async function processOneAiReviewJob(): Promise<{ processed: boolean; jobId?: string; status?: string }> {

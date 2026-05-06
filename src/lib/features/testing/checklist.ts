@@ -52,29 +52,29 @@ export function createFullTestingItems(): TestingItem[] {
 		row(
 			'm3',
 			'mandatory',
-			'Application runs successfully on a virtual or physical device with chosen platform (Android/iOS).',
-			'Your application runs successfully on a virtual or physical device with your chosen platform (Android/iOS).',
+			'The receptionist can see a list of upcoming races',
+			'The receptionist can see a list of upcoming races',
 			'jane'
 		),
 		row(
 			'm4',
 			'mandatory',
-			'User can create an account with email, username and password.',
-			'Your application allows users to create an account with email, username and password.',
+			'Race sessions disappear from the front desk when the race starts',
+			'Your code removes race sessions from the front desk when the race starts',
 			'joe'
 		),
 		row(
 			'm5',
 			'mandatory',
-			'Registration is not allowed if email or username is already in use. User receives proper visual feedback.',
-			'Your application prevents registration if email or username is already in use and provides proper visual feedback.',
+			'The safety official has one active button, which starts the race when pressed',
+			'The safety official has one active button, which starts the race when pressed',
 			'joe'
 		),
 		row(
 			'm6',
 			'mandatory',
-			'Application checks password strength: >=8 characters, lowercase, uppercase, digit, special character. Registration blocked if weak; user gets visual feedback.',
-			'Your application checks password strength (>=8 characters, lowercase, uppercase, digit, special character), blocks weak passwords, and provides visual feedback.',
+			'When the lap button is pressed for a car, the leaderboard updates with the correct lap count and fastest lap time',
+			'When the lap button is pressed for a car, the leaderboard updates with the correct lap count and fastest lap time',
 			'joe'
 		)
 	];

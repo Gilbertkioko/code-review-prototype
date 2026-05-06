@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	const aiReview = await getProjectAiReviewOrJob(params.projectId);
 	const hasPreviousSuccessfulReview =
 		project?.giteaUrl ? await hasCompletedReviewForRepo(project.giteaUrl) : false;
-	return { aiReview, hasPreviousSuccessfulReview };
+	return { aiReview, hasPreviousSuccessfulReview, hasRepoUrl: Boolean(project?.giteaUrl) };
 };
 
 export const actions: Actions = {

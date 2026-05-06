@@ -72,13 +72,19 @@ import { verdictChipClass, verdictLabel } from '$lib/features/testing/testingUti
 				</div>
 			</div>
 		{/if}
-		{#if data.hasPreviousSuccessfulReview}
+		{#if data.hasRepoUrl}
 			<form
 				method="post"
 				action="?/reviewAgainFresh"
 				class="mt-4"
 				onsubmit={(e) => {
-					if (!confirm('A successful review already exists for this repository. Run a fresh review anyway?')) {
+					if (
+						!confirm(
+							data.hasPreviousSuccessfulReview
+								? 'A successful review already exists for this repository. Run a fresh review anyway?'
+								: 'Run a fresh AI review now? This may call Anthropic if no cache is reusable.'
+						)
+					) {
 						e.preventDefault();
 					}
 				}}
@@ -92,7 +98,7 @@ import { verdictChipClass, verdictLabel } from '$lib/features/testing/testingUti
 					type="submit"
 					class="rounded-md border border-kood-border px-3 py-1.5 text-xs font-semibold text-kood-text hover:bg-kood-surface-raised"
 				>
-					Review again (ignore previous cache)
+					Redo AI review (force fresh run)
 				</button>
 			</form>
 		{/if}
