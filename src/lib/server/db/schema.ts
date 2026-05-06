@@ -207,3 +207,57 @@ export const projectComment = sqliteTable('project_comment', {
 	body: text('body').notNull(),
 	createdAt: integer('created_at', { mode: 'number' }).notNull()
 });
+
+/** Cached AI review keyed by (normalized repo URL + review questions hash + prompt version). */
+export const aiReviewCache = sqliteTable('ai_review_cache', {
+	id: text('id').primaryKey(),
+	repoUrlNormalized: text('repo_url_normalized').notNull(),
+	questionsHash: text('questions_hash').notNull(),
+	promptVersion: text('prompt_version').notNull(),
+	model: text('model').notNull(),
+	status: text('status').notNull(),
+	resultJson: text('result_json'),
+	rawResponse: text('raw_response'),
+	error: text('error'),
+	createdAt: integer('created_at', { mode: 'number' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+	completedAt: integer('completed_at', { mode: 'number' })
+});
+
+/** Project-specific attachment to a cached AI review record. */
+export const projectAiReview = sqliteTable(
+	'project_ai_review',
+	{
+		projectId: text('project_id')
+			.notNull()
+			.references(() => project.id, { onDelete: 'cascade' }),
+		aiReviewCacheId: text('ai_review_cache_id')
+			.notNull()
+			.references(() => aiReviewCache.id, { onDelete: 'cascade' }),
+		linkedAt: integer('linked_at', { mode: 'number' }).notNull()
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.projectId, t.aiReviewCacheId] })
+	})
+);
+
+/** Background processing queue for non-blocking AI review runs with retries. */
+export const aiReviewJob = sqliteTable('ai_review_job', {
+	id: text('id').primaryKey(),
+	projectId: text('project_id')
+		.notNull()
+		.references(() => project.id, { onDelete: 'cascade' }),
+	repoUrl: text('repo_url').notNull(),
+	repoUrlNormalized: text('repo_url_normalized').notNull(),
+	questionsHash: text('questions_hash').notNull(),
+	promptVersion: text('prompt_version').notNull(),
+	status: text('status').notNull(),
+	attemptCount: integer('attempt_count', { mode: 'number' }).notNull().default(0),
+	maxAttempts: integer('max_attempts', { mode: 'number' }).notNull().default(3),
+	nextRunAt: integer('next_run_at', { mode: 'number' }).notNull(),
+	lockedAt: integer('locked_at', { mode: 'number' }),
+	lastError: text('last_error'),
+	createdAt: integer('created_at', { mode: 'number' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+	finishedAt: integer('finished_at', { mode: 'number' })
+});

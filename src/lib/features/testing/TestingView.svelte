@@ -97,9 +97,8 @@
 	<header>
 		<h2 class="text-2xl font-semibold text-kood-text">Testing</h2>
 		<p class="mt-3 text-sm leading-relaxed text-kood-muted">
-			Mandatory checks are <strong class="text-kood-text/90">split between {jName} and {oName}</strong> — each row has
-			one owner who Accepts/Declines; the other reviewer reads along and can comment. Progress below always reflects the
-			<strong class="text-kood-text/90">full</strong> mandatory list.
+			Ensures the racetrack system works as expected by validating interfaces and features against the briefing.
+			Testing helps catch bugs early, improves reliability, and keeps the review focused on the core race control experience.
 		</p>
 	</header>
 
@@ -108,14 +107,9 @@
 			<h3 class="text-sm font-semibold text-kood-text">How to do testing?</h3>
 			<ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-kood-muted">
 				<li>Clone the repository, then build and run the submitted code.</li>
-				<li>
-					<strong class="text-kood-text/90">Mandatory split is assigned in the UI</strong> — focus on your owned rows;
-					watch the peer’s tab to stay aligned.
-				</li>
-				<li>Test functionality and check compliance with the requirements.</li>
-				<li>Provide feedback in the group chat and request fixes if necessary.</li>
-				<li>Clearly state what changes are mandatory and what are optional fixes.</li>
-				<li>Repeat the cycle after submitters make changes as many times as needed.</li>
+				<li>Agree how you and your reviewer split the testing effort before you start.</li>
+				<li>Test the required racetrack workflows and verify compliance with the brief.</li>
+				<li>Provide feedback in the group chat, request fixes, and repeat until the mandatory checks pass.</li>
 			</ol>
 		</section>
 	{/if}

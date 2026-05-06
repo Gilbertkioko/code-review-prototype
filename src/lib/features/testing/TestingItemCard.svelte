@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		testingAiDisagreement,
 		getApp,
 		getPersonaDisplayLabel,
 		isTestingCommentSending,
@@ -39,6 +40,9 @@
 		`${getPersonaDisplayLabel('jane')} & ${getPersonaDisplayLabel('joe')}`
 	);
 	const commentSending = $derived(isTestingCommentSending(item.id));
+	const aiDisagreement = $derived(
+		self && (self === 'jane' || self === 'joe') ? testingAiDisagreement(item.id, self) : null
+	);
 	const owner = $derived(item.mandatoryOwner ?? null);
 	const flagged = $derived(
 		item.section === 'mandatory' && owner
@@ -146,10 +150,24 @@
 				>
 			</div>
 		{/if}
+		{#if aiDisagreement}
+			<details class="w-full rounded-md border border-red-400/30 bg-red-500/10 p-2 text-[11px] text-red-100">
+				<summary class="cursor-pointer font-semibold">AI suggests decline — show rationale</summary>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI question:</strong> {aiDisagreement.question}</p>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI evidence:</strong> {aiDisagreement.evidence}</p>
+			</details>
+		{/if}
 	</div>
 
 	{#if open}
 		<div class="space-y-3 border-t border-kood-border px-3 pb-3 pt-2.5">
+			{#if aiDisagreement}
+				<div class="rounded-md border border-red-400/40 bg-red-500/10 p-2.5 text-xs text-red-100">
+					<p class="font-semibold">AI suggests decline — please re-check before keeping Accept.</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI question:</strong> {aiDisagreement.question}</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI evidence:</strong> {aiDisagreement.evidence}</p>
+				</div>
+			{/if}
 			{#if isReviewer && self && peer}
 				{#if item.section === 'mandatory' && owner}
 					{#if owner === self}

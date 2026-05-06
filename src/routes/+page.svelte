@@ -9,6 +9,7 @@
 		importCategorySessionsFromServer,
 		importTestingStateFromServer,
 		reviewerNeedsAssignmentGate,
+		setAiReviewerAssistFromServer,
 		setCategoryAssigneeOverride,
 		setReviewerAssignmentAcceptedFromServer,
 		setRole,
@@ -99,6 +100,16 @@ let hadReviewerProject = $state(false);
 	$effect(() => {
 		if (!browser) return;
 		const w = data.workspace;
+		if (w.kind === 'reviewer') {
+			setAiReviewerAssistFromServer(w.aiReviewerAssist ?? null);
+			return () => setAiReviewerAssistFromServer(null);
+		}
+		setAiReviewerAssistFromServer(null);
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		const w = data.workspace;
 		if (w.kind === 'submitter' || w.kind === 'reviewer') {
 			if (w.reviewRoom) {
 				setWorkspaceDisplayNames({
@@ -154,7 +165,7 @@ let hadReviewerProject = $state(false);
 </script>
 
 <svelte:head>
-	<title>Mobile Messenger — //kood prototype</title>
+	<title>Beachside Racetrack — //kood prototype</title>
 </svelte:head>
 
 <PrototypePageShell>

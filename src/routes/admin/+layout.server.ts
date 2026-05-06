@@ -2,7 +2,14 @@ import { listAdminSidebarProjects } from '$lib/server/review-workspace';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
-export type AdminProjectSection = 'overview' | 'testing' | 'code-review' | 'standup' | 'feedback' | null;
+export type AdminProjectSection =
+	| 'overview'
+	| 'testing'
+	| 'code-review'
+	| 'ai-review'
+	| 'standup'
+	| 'feedback'
+	| null;
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -16,7 +23,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const m = path.match(/^\/admin\/projects\/([^/]+)(?:\/([^/]+))?$/);
 	const adminProjectRouteId = m?.[1] ?? null;
 	const rawSec = m?.[2] ?? null;
-	const validSecs = ['testing', 'code-review', 'standup', 'feedback'] as const;
+	const validSecs = ['testing', 'code-review', 'ai-review', 'standup', 'feedback'] as const;
 	type AuditTab = (typeof validSecs)[number];
 	let sectionTab: AuditTab | null = null;
 	if (rawSec && (validSecs as readonly string[]).includes(rawSec)) {

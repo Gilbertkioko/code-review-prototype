@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		codeReviewAiDisagreement,
 		codeReviewReviewerCommentCount,
 		getApp,
 		getCodeReviewObservationRow,
@@ -43,6 +44,11 @@
 		`${getPersonaDisplayLabel('jane')} & ${getPersonaDisplayLabel('joe')}`
 	);
 	const commentSending = $derived(isCodeReviewCommentSending(entry.categoryId, entry.observationId));
+	const aiDisagreement = $derived(
+		self && (self === 'jane' || self === 'joe')
+			? codeReviewAiDisagreement(entry.categoryId, entry.observationId, self)
+			: null
+	);
 </script>
 
 <div
@@ -127,6 +133,16 @@
 				>
 			</div>
 		{/if}
+		{#if aiDisagreement}
+			<details class="w-full rounded-md border border-red-400/30 bg-red-500/10 p-2 text-[11px] text-red-100">
+				<summary class="cursor-pointer font-semibold">AI suggests decline — show rationale</summary>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI question:</strong> {aiDisagreement.question}</p>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI severity:</strong> {aiDisagreement.severity}</p>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI finding:</strong> {aiDisagreement.finding}</p>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI evidence:</strong> {aiDisagreement.evidence}</p>
+				<p class="mt-1 whitespace-pre-wrap"><strong>AI recommendation:</strong> {aiDisagreement.recommendation}</p>
+			</details>
+		{/if}
 		{#if isSandra && !open}
 			<p class="ml-auto text-[11px] text-kood-muted">Expand for thread</p>
 		{/if}
@@ -134,6 +150,16 @@
 
 	{#if open}
 		<div class="space-y-3 border-t border-kood-border px-3 pb-3 pt-2.5">
+			{#if aiDisagreement}
+				<div class="rounded-md border border-red-400/40 bg-red-500/10 p-2.5 text-xs text-red-100">
+					<p class="font-semibold">AI suggests decline — please re-check before keeping Accept.</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI question:</strong> {aiDisagreement.question}</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI severity:</strong> {aiDisagreement.severity}</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI finding:</strong> {aiDisagreement.finding}</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI evidence:</strong> {aiDisagreement.evidence}</p>
+					<p class="mt-1 whitespace-pre-wrap"><strong>AI recommendation:</strong> {aiDisagreement.recommendation}</p>
+				</div>
+			{/if}
 			{#if isReviewer && self && peer}
 				{#if owner === self}
 					<p class="text-[11px] text-kood-muted">

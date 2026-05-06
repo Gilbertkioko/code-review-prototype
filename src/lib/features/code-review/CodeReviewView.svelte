@@ -7,7 +7,13 @@
 </script>
 
 <div class="space-y-6">
-
+	<header>
+		<h2 class="text-2xl font-semibold text-kood-text">Code review</h2>
+		<p class="mt-3 text-sm leading-relaxed text-kood-muted">
+			Review the racetrack system for reliability, real-time behavior, route coverage, and role-specific interface flows.
+			Focus on whether the frontend and backend work together to keep spectators, drivers, and staff informed at every stage.
+		</p>
+	</header>
 
 	<CodeReviewSprintBoard />
 
