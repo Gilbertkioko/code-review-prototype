@@ -12,7 +12,7 @@ import { promisify } from 'node:util';
 import { getDb } from './db';
 import { aiReviewCache, aiReviewJob, project, projectAiReview } from './db/schema';
 
-export const AI_REVIEW_PROMPT_VERSION = 'v4';
+export const AI_REVIEW_PROMPT_VERSION = 'v6';
 export const AI_REVIEW_MODEL = 'claude-haiku-4-5-20251001';
 /** Long structured reviews exceed 4k tokens; truncated JSON fails to parse. */
 const AI_REVIEW_MAX_OUTPUT_TOKENS = 16_384;
@@ -237,6 +237,18 @@ type ReviewQuestionsSnapshot = {
 	codeReview: Array<{ id: string; category: string; text: string }>;
 };
 
+function buildMvpFramedQuestions(snapshot: ReviewQuestionsSnapshot): ReviewQuestionsSnapshot {
+	const functional = snapshot.functional.map((q) => ({
+		...q,
+		text: `MVP acceptance scope: ${q.text}`
+	}));
+	const codeReview = snapshot.codeReview.map((q) => ({
+		...q,
+		text: `MVP acceptance scope (${q.category}): ${q.text}`
+	}));
+	return { functional, codeReview };
+}
+
 export function buildQuestionsSnapshot(): ReviewQuestionsSnapshot {
 	const functional = createFullTestingItems().map((item) => ({
 		id: item.id,
@@ -322,6 +334,11 @@ async function callClaudeForReview(params: {
 		console.log('[ai-review] calling Anthropic messages API', { model: AI_REVIEW_MODEL });
 	}
 
+	const mvpFramed = buildMvpFramedQuestions({
+		functional: params.functionalQuestions,
+		codeReview: params.codeReviewQuestions
+	});
+
 	const prompt = [
 		'You are a thorough but fair software reviewer.',
 		'Review the provided repository source files and answer the supplied question sets.',
@@ -337,6 +354,10 @@ async function callClaudeForReview(params: {
 		'Functional testing verdict rule: use verdict="accept" only when the criterion is correctly implemented and works; otherwise use verdict="decline".',
 		'Code review verdict rule: use verdict="accept" when the guiding question is mostly met at a satisfactory level, even if minor issues exist.',
 		'Code review verdict rule: use verdict="decline" when the requirement is clearly not met, or major/security-critical gaps make it unsatisfactory.',
+		'MVP scope rule: evaluate only what this project explicitly requires for this assignment.',
+		'MVP scope rule: do not decline for enterprise-only controls not required by this brief (for example JWT/OAuth, WAF, SAST pipelines, encryption-at-rest, advanced RBAC, SIEM, DDoS controls).',
+		'Security grading rule for this project: focus on access-key gating of employee interfaces, startup failure when keys are missing, correct handling of wrong keys (delay + error + re-prompt), and preventing unauthorized race-control actions.',
+		'Severity rule: if core MVP behavior works and the gap is minor/non-critical, keep verdict="accept" and use low severity with recommendation.',
 		'Use the provided project scope/requirements as grading boundaries so MVP-sized projects are evaluated against expected scope.',
 		'Be thorough, use your judgement, and do not be overly harsh when issues are minor.',
 		`Repository URL: ${params.repoUrl}`,
@@ -344,8 +365,8 @@ async function callClaudeForReview(params: {
 		`Project scope and requirements seen by submitter:\n${params.projectScope}`,
 		`Repository files provided: ${params.repoFileCount}`,
 		`Repository source text:\n${params.repoContextText}`,
-		`Functional questions: ${JSON.stringify(params.functionalQuestions)}`,
-		`Code review questions: ${JSON.stringify(params.codeReviewQuestions)}`
+		`Functional questions: ${JSON.stringify(mvpFramed.functional)}`,
+		`Code review questions: ${JSON.stringify(mvpFramed.codeReview)}`
 	].join('\n');
 
 	const res = await fetch('https://api.anthropic.com/v1/messages', {
