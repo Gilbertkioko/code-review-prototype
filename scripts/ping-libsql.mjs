@@ -26,7 +26,6 @@ function resolveKitUrl() {
 
 const url = resolveKitUrl();
 if (url.startsWith('file:')) {
-	console.log('DATABASE_URL is a local file — remote ping skipped.');
 	process.exit(0);
 }
 
@@ -46,7 +45,6 @@ const deadline = setTimeout(() => {
 try {
 	const r = await client.execute('SELECT 1 AS ok');
 	clearTimeout(deadline);
-	console.log('libsql reachable:', r.rows);
 } catch (err) {
 	clearTimeout(deadline);
 	console.error(err);

@@ -44,12 +44,11 @@ const found = await client.execute({
 });
 
 if (!found.rows.length) {
-	console.log('No project matched:', pattern);
 	process.exit(0);
 }
 
 for (const row of found.rows) {
-	console.log('Deleting project', row);
+
 	const id = String(row.id);
 
 	const stmts = [
@@ -67,7 +66,7 @@ for (const row of found.rows) {
 	for (const sql of stmts) {
 		await client.execute({ sql, args: [id] });
 	}
-	console.log('Done:', id);
+	
 }
 
 client.close();

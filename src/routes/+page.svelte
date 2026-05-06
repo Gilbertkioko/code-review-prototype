@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { getContext } from 'svelte';
-	import { realtimeClientLog } from '$lib/realtimeDebug';
 	import { getRealtimeSocket } from '$lib/socket';
 	import { setActiveCollaboration } from '$lib/collaborationContext';
 	import {
@@ -62,7 +61,6 @@ let hadReviewerProject = $state(false);
 			return () => setActiveCollaboration(null);
 		}
 		const joinProjectRoom = () => {
-			realtimeClientLog('emit joinProject', projectId.slice(0, 8) + '…');
 			socket.emit('joinProject', projectId);
 		};
 		socket.on('connect', joinProjectRoom);

@@ -1,6 +1,5 @@
 import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
-import { realtimeClientLog } from '$lib/realtimeDebug';
 
 /** In production, SSE is opt-in (`PUBLIC_REALTIME_SSE=1`) because in-process fan-out does not cross Vercel instances. Dev defaults to on unless set to `0`. */
 export function isRealtimeSseEnabled(): boolean {
@@ -24,16 +23,9 @@ export function connectRealtimeSse(onInvalidate: (source: string) => void): { cl
 		};
 	es.addEventListener('review', bump('sse:review'));
 	es.addEventListener('workspace', bump('sse:workspace'));
-	es.addEventListener('ready', () => {
-		realtimeClientLog('sse connected');
-	});
-	es.onerror = () => {
-		realtimeClientLog('sse error / reconnecting');
-	};
 	return {
 		close: () => {
 			es.close();
-			realtimeClientLog('sse closed');
 		}
 	};
 }

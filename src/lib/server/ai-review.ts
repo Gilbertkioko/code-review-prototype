@@ -323,15 +323,8 @@ async function callClaudeForReview(params: {
 	codeReviewQuestions: Array<{ id: string; category: string; text: string }>;
 }): Promise<string> {
 	const apiKey = resolveAnthropicApiKey();
-	if (env.AI_REVIEW_WORKER_DEBUG === '1') {
-		console.log('[ai-review] api key present:', Boolean(apiKey));
-	}
 	if (!apiKey) {
 		throw new Error('ANTHROPIC_API_KEY is not set (checked $env/dynamic/private and process.env)');
-	}
-
-	if (env.AI_REVIEW_WORKER_DEBUG === '1') {
-		console.log('[ai-review] calling Anthropic messages API', { model: AI_REVIEW_MODEL });
 	}
 
 	const mvpFramed = buildMvpFramedQuestions({
@@ -666,23 +659,6 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 		.orderBy(aiReviewJob.nextRunAt)
 		.limit(1);
 	const job = candidates[0];
-	if (candidates.length > 0) {
-		// Safe log: confirms worker sees eligible jobs (no secrets).
-		console.log(
-			'[ai-review-worker] eligible job:',
-			`jobId=${job?.id ?? 'unknown'}`,
-			`status=${job?.status ?? 'unknown'}`,
-			`attempt=${job?.attemptCount ?? '?'}/${job?.maxAttempts ?? '?'}`,
-			`nextRunAt=${job?.nextRunAt ?? '?'}`
-		);
-	}
-	if (env.AI_REVIEW_WORKER_DEBUG === '1') {
-		console.log(
-			'[ai-review] worker tick candidates:',
-			candidates.length,
-			job?.id ? `job=${job.id}` : ''
-		);
-	}
 	if (!job) return { processed: false };
 
 	const lockRes = await db
@@ -762,7 +738,6 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 	} catch (e) {
 		const message = formatWorkerError(e);
 		const friendly = toAdminFriendlyError(message);
-		console.error('[ai-review-worker] job failed:', { jobId: job.id, error: message });
 		if (cacheId) {
 			await getDb()
 				.update(aiReviewCache)
@@ -866,12 +841,11 @@ export function startAiReviewWorkerLoop() {
 	if (workerLoopStarted || g.__aiReviewWorkerInterval) return;
 	if (env.AI_REVIEW_WORKER_DISABLED === '1') return;
 	workerLoopStarted = true;
-	console.log('[ai-review-worker] started');
 	const tick = async () => {
 		try {
 			await processOneAiReviewJob();
-		} catch (e) {
-			console.error('[ai-review-worker] tick error', e);
+		} catch {
+			/* ignore tick-level failures — job retry state is persisted separately */
 		}
 	};
 	void tick();

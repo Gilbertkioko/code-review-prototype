@@ -64,5 +64,5 @@ WHERE type='table'
 ORDER BY name;
 `);
 
-console.log('Created/verified tables:', rows.rows.map((r) => r.name).join(', '));
+
 client.close();
