@@ -10,12 +10,21 @@ import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { promisify } from 'node:util';
 import { getDb } from './db';
-import { aiReviewCache, aiReviewJob, projectAiReview } from './db/schema';
+import { aiReviewCache, aiReviewJob, project, projectAiReview } from './db/schema';
 
-export const AI_REVIEW_PROMPT_VERSION = 'v3';
+export const AI_REVIEW_PROMPT_VERSION = 'v4';
 export const AI_REVIEW_MODEL = 'claude-haiku-4-5-20251001';
 /** Long structured reviews exceed 4k tokens; truncated JSON fails to parse. */
 const AI_REVIEW_MAX_OUTPUT_TOKENS = 16_384;
+const COURSE_PROJECT_SCOPE = [
+	'Beachside Racetrack MVP scope (same brief submitters see):',
+	'- Build a real-time race management and spectator information system in Node.js + Socket.IO.',
+	'- Personas: Receptionist, Safety Official, Lap-line Observer, Race Driver, Spectator.',
+	'- Key MVP requirements: configure race sessions/drivers/cars, start + control race modes (Safe/Hazard/Danger/Finish), track lap crossings and fastest laps, show live leaderboard/timer/flag status, keep previous race visible until next starts.',
+	'- Interface routes expected: /front-desk, /race-control, /lap-line-tracker, /leaderboard, /next-race, /race-countdown, /race-flags.',
+	'- Technology expectations: npm start works, dev timer override via npm run dev (1 minute in dev, 10 minutes production), live sync via Socket.IO (no polling).',
+	'- Security requirements for MVP: protected employee interfaces require environment-backed access keys, server refuses startup when required keys are missing, failed key attempts wait ~500ms and re-prompt clearly.'
+].join('\n');
 const execFileAsync = promisify(execFile);
 const MAX_REPO_FILES = 80;
 const MAX_FILE_CHARS = 10_000;
@@ -243,9 +252,10 @@ export function buildQuestionsSnapshot(): ReviewQuestionsSnapshot {
 	return { functional, codeReview };
 }
 
-export function computeQuestionsHash(snapshot: ReviewQuestionsSnapshot): string {
+export function computeQuestionsHash(snapshot: ReviewQuestionsSnapshot, projectScope = ''): string {
 	const canonical = JSON.stringify({
 		promptVersion: AI_REVIEW_PROMPT_VERSION,
+		projectScope,
 		functional: snapshot.functional,
 		codeReview: snapshot.codeReview
 	});
@@ -294,6 +304,7 @@ function parseAnthropicTextPayload(rawText: string): AiReviewStructuredResult {
 
 async function callClaudeForReview(params: {
 	repoUrl: string;
+	projectScope: string;
 	repoContextText: string;
 	repoFileCount: number;
 	functionalQuestions: Array<{ id: string; text: string }>;
@@ -326,8 +337,11 @@ async function callClaudeForReview(params: {
 		'Functional testing verdict rule: use verdict="accept" only when the criterion is correctly implemented and works; otherwise use verdict="decline".',
 		'Code review verdict rule: use verdict="accept" when the guiding question is mostly met at a satisfactory level, even if minor issues exist.',
 		'Code review verdict rule: use verdict="decline" when the requirement is clearly not met, or major/security-critical gaps make it unsatisfactory.',
+		'Use the provided project scope/requirements as grading boundaries so MVP-sized projects are evaluated against expected scope.',
 		'Be thorough, use your judgement, and do not be overly harsh when issues are minor.',
 		`Repository URL: ${params.repoUrl}`,
+		`Course/project brief scope:\n${COURSE_PROJECT_SCOPE}`,
+		`Project scope and requirements seen by submitter:\n${params.projectScope}`,
 		`Repository files provided: ${params.repoFileCount}`,
 		`Repository source text:\n${params.repoContextText}`,
 		`Functional questions: ${JSON.stringify(params.functionalQuestions)}`,
@@ -550,7 +564,13 @@ export async function enqueueAiReviewForProject(
 }> {
 	const repoUrlNormalized = normalizeRepoUrl(repoUrl);
 	const questionsSnapshot = buildQuestionsSnapshot();
-	const questionsHash = computeQuestionsHash(questionsSnapshot);
+	const projectRows = await getDb()
+		.select({ instructions: project.instructions })
+		.from(project)
+		.where(eq(project.id, projectId))
+		.limit(1);
+	const projectScope = projectRows[0]?.instructions?.trim() ?? '';
+	const questionsHash = computeQuestionsHash(questionsSnapshot, projectScope);
 
 	if (!opts?.forceFresh) {
 		const hit = await latestCompletedCache(repoUrlNormalized, questionsHash);
@@ -680,8 +700,15 @@ export async function processOneAiReviewJob(): Promise<{ processed: boolean; job
 		// Link immediately so failed runs still appear on the project page with raw response/error details.
 		await linkReviewToProject(job.projectId, cacheId);
 		const repoCtx = await buildRepoContextText(job.repoUrl);
+		const projectRows = await db
+			.select({ instructions: project.instructions })
+			.from(project)
+			.where(eq(project.id, job.projectId))
+			.limit(1);
+		const projectScope = projectRows[0]?.instructions?.trim() ?? '';
 		rawModelResponse = await callClaudeForReview({
 			repoUrl: job.repoUrl,
+			projectScope,
 			repoContextText: repoCtx.contextText,
 			repoFileCount: repoCtx.fileCount,
 			functionalQuestions: buildQuestionsSnapshot().functional,
