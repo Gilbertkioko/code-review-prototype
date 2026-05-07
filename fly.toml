@@ -1,39 +1,30 @@
-# Fly.io — https://fly.io/docs/reference/configuration/
+# fly.toml app configuration file generated for code-review-sprint-2-delicate-mountain-1167 on 2026-05-07T08:35:44Z
 #
-# Socket.IO (in-memory Engine.IO): Fly’s default is **two** Machines for `[http_service]` apps, so `/socket.io`
-# polls hit different VMs → HTTP 400 on `sid`. Use one Machine: `fly scale count 1`, and CI uses `fly deploy --ha=false`.
-# Multi-machine needs Redis adapter + sticky sessions or fly-replay (see Fly “sticky sessions” blueprint).
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
-# First time:
-#   fly auth login
-#   fly apps create code-review-sprint   # or another name, then set `app` below
-#   fly secrets set TURSO_DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..."
-#   fly deploy
-#
-# Change `app` to match your Fly app name. `fly launch` can also generate a new fly.toml to merge.
 
-app = "code-review-sprint-2"
-primary_region = "ams"
+app = 'code-review-sprint-2-delicate-mountain-1167'
+primary_region = 'ams'
 
 [build]
-	dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [http_service]
-	internal_port = 3000
-	force_https = true
-	# Keep machines running for WebSockets (paid tier); use "stop" + min_machines_running = 0 to allow sleep.
-	auto_stop_machines = "off"
-	auto_start_machines = true
-	min_machines_running = 1
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
 
-[[http_service.checks]]
-	grace_period = "10s"
-	interval = "30s"
-	method = "GET"
-	timeout = "5s"
-	path = "/login"
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/login'
 
 [[vm]]
-	memory = "512mb"
-	cpu_kind = "shared"
-	cpus = 1
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
