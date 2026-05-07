@@ -12,7 +12,7 @@
 #
 # Change `app` to match your Fly app name. `fly launch` can also generate a new fly.toml to merge.
 
-app = "code-review-sprint-2"
+app = "code-review-sprint"
 primary_region = "ams"
 
 [build]
