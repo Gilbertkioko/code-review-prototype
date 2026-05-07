@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { io, type Socket } from 'socket.io-client';
+import { realtimeClientLog } from './realtimeDebug';
 
 let singleton: Socket | null = null;
 let connectErrorStreak = 0;
@@ -38,6 +39,7 @@ export function getRealtimeSocket(): Socket | null {
 	}
 	if (gaveUpUntilReload) return null;
 	if (!singleton) {
+		realtimeClientLog('creating Socket.IO client', { path: '/socket.io', origin: window.location.origin });
 		singleton = io({
 			path: '/socket.io',
 			withCredentials: true,
@@ -53,6 +55,9 @@ export function getRealtimeSocket(): Socket | null {
 		singleton.on('connect_error', () => {
 			connectErrorStreak += 1;
 			if (connectErrorStreak >= CONNECT_ERRORS_BEFORE_DISABLE) {
+				realtimeClientLog(
+					'socket: client stopped after repeated failures — use Node host for Socket.IO, or set PUBLIC_REALTIME_SOCKET=0 on Vercel'
+				);
 				gaveUpUntilReload = true;
 				tearDownSingleton();
 			}

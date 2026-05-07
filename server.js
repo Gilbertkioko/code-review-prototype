@@ -22,6 +22,13 @@ const io = new Server(httpServer, {
 });
 attachSocketIo(io);
 
+const port = Number(process.env.PORT) || 3000;
+const host = process.env.HOST ?? '0.0.0.0';
+
+httpServer.listen(port, host, () => {
+	console.log(`Listening on http://${host}:${port}`);
+});
+
 function shutdown() {
 	httpServer.close(() => process.exit(0));
 }

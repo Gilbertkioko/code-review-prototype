@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { invalidate, invalidateAll } from '$app/navigation';
+import { realtimeClientLog } from '$lib/realtimeDebug';
 import { WORKSPACE_PAGE_LOAD } from '$lib/workspaceLoadDependency';
 
 /** Coalesce rapid admin / no-payload invalidations (full tree). */
@@ -16,6 +17,7 @@ export function scheduleDebouncedInvalidateAll(source: string) {
 	if (adminDebounceTimer) clearTimeout(adminDebounceTimer);
 	adminDebounceTimer = setTimeout(() => {
 		adminDebounceTimer = undefined;
+		realtimeClientLog('invalidateAll()', { source: `${source} (debounced)` });
 		void invalidateAll().catch(() => {
 			// Invalidation can race during HMR/navigation; we don't want to crash the UI.
 		});
@@ -28,6 +30,7 @@ export function scheduleDebouncedWorkspaceReload(source: string) {
 	if (workspaceDebounceTimer) clearTimeout(workspaceDebounceTimer);
 	workspaceDebounceTimer = setTimeout(() => {
 		workspaceDebounceTimer = undefined;
+		realtimeClientLog('invalidate(app:workspace)', { source: `${source} (debounced)` });
 		void invalidate(WORKSPACE_PAGE_LOAD).catch(() => {
 			/* ignore */
 		});

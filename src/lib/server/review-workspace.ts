@@ -522,8 +522,8 @@ export async function saveProjectReviewWorkspace(
 	});
 	try {
 		await syncReviewRelationalTablesFromPayload(projectId, testingJson, mergedCodeReviewJson);
-	} catch {
-		/* Best-effort: JSON payloads are persisted; relational mirror can be rebuilt later. */
+	} catch (e) {
+		console.error('[review-workspace] syncReviewRelationalTablesFromPayload', e);
 	}
 }
 

@@ -39,6 +39,7 @@ export const SUBMISSION_PROGRESS_VALUES = [
 export type SubmissionProgress = (typeof SUBMISSION_PROGRESS_VALUES)[number];
 
 export function notifyProjectReviewUpdate(projectId: string) {
+	console.info('[realtime-server] notifyProjectReviewUpdate', projectId.slice(0, 8) + '…');
 	broadcastToProject(projectId, 'review:invalidate', { projectId });
 	void sseFanoutReviewToProjectWatchers(projectId);
 	void dispatchWorkspaceInvalidateForProject(projectId);
@@ -48,6 +49,7 @@ export function notifyProjectReviewUpdate(projectId: string) {
 async function dispatchWorkspaceInvalidateForProject(projectId: string) {
 	const p = await getProjectById(projectId);
 	if (!p) {
+		console.warn('[realtime-server] dispatchWorkspaceInvalidateForProject: no project', projectId);
 		return;
 	}
 	const pair = await getPairForProject(projectId);
@@ -56,6 +58,11 @@ async function dispatchWorkspaceInvalidateForProject(projectId: string) {
 		ids.add(pair.reviewerAId);
 		ids.add(pair.reviewerBId);
 	}
+	console.info(
+		'[realtime-server] workspace:invalidate → user rooms',
+		ids.size,
+		Array.from(ids).map((id) => id.slice(0, 8) + '…')
+	);
 	for (const id of ids) {
 		broadcastToUser(id, 'workspace:invalidate', { projectId });
 		ssePublishUser(id, 'workspace', { projectId });
@@ -64,6 +71,7 @@ async function dispatchWorkspaceInvalidateForProject(projectId: string) {
 
 /** Call when any project list or global admin state may have changed. */
 export function notifyAdminDashboard() {
+	console.info('[realtime-server] notifyAdminDashboard');
 	broadcastToRole('admin', 'workspace:invalidate', {});
 	ssePublishRole('admin', 'workspace', {});
 }
@@ -75,6 +83,7 @@ export function notifyReviewerReassigned(params: {
 	reason: string;
 }) {
 	const { reviewerUserId, projectId, reason } = params;
+	console.info('[realtime-server] notifyReviewerReassigned', reviewerUserId.slice(0, 8) + '…', projectId.slice(0, 8) + '…');
 	broadcastToUser(reviewerUserId, 'reviewer:reassigned', { projectId, reason });
 	broadcastToUser(reviewerUserId, 'workspace:invalidate', { projectId });
 	ssePublishUser(reviewerUserId, 'workspace', { projectId });

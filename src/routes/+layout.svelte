@@ -8,6 +8,7 @@
 		hydrateAppStateForAccount
 	} from '$lib/appState.svelte';
 	import { AUTH_SESSION, type SessionUser } from '$lib/auth-context';
+	import { realtimeClientLog } from '$lib/realtimeDebug';
 	import { connectRealtimeSse, isRealtimeSseEnabled } from '$lib/realtimeSse';
 	import {
 		cancelDebouncedInvalidateAll,
@@ -55,7 +56,8 @@
 		const socket = getRealtimeSocket();
 		const sessionUser = data.sessionUser;
 
-		const bumpImmediate = (_source: string) => {
+		const bumpImmediate = (source: string) => {
+			realtimeClientLog('invalidate(app:workspace) poll', { source });
 			void invalidate(WORKSPACE_PAGE_LOAD).catch(() => {
 				// Invalidation can race during navigation/HMR; ignore failures.
 			});
@@ -67,23 +69,28 @@
 
 		const bumpFromSocket = (source: string, payload?: unknown) => {
 			if (socketPayloadHasProjectId(payload)) {
+				realtimeClientLog('scheduleDebouncedWorkspaceReload', { source });
 				scheduleDebouncedWorkspaceReload(source);
 			} else {
+				realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
 				scheduleDebouncedInvalidateAll(source);
 			}
 		};
 		const bumpFromSse = (source: string) => {
+			realtimeClientLog('scheduleDebouncedInvalidateAll', { source });
 			scheduleDebouncedInvalidateAll(source);
 		};
 
 		const armPoll = () => {
 			if (pollTimer) return;
+			realtimeClientLog('polling fallback ON — socket not usable', { everyMs: POLL_FALLBACK_MS });
 			pollTimer = setInterval(() => bumpImmediate('poll:fallback'), POLL_FALLBACK_MS);
 		};
 		const disarmPoll = () => {
 			if (pollTimer) {
 				clearInterval(pollTimer);
 				pollTimer = undefined;
+				realtimeClientLog('polling fallback OFF');
 			}
 		};
 
@@ -126,22 +133,29 @@
 		/** Rooms are per socket connection — must run on every `connect` (reload, reconnect, wake from sleep). */
 		const syncSessionRooms = () => {
 			if (!sessionUser) {
+				realtimeClientLog('syncSessionRooms skipped (no sessionUser)');
 				return;
 			}
+			realtimeClientLog('emit joinUser', sessionUser.id.slice(0, 8) + '…', sessionUser.role);
 			socket.emit('joinUser', sessionUser.id);
 			if (sessionUser.role === 'admin') {
+				realtimeClientLog('emit joinRole admin');
 				socket.emit('joinRole', 'admin');
 			}
 		};
 
 		const onConnect = () => {
+			realtimeClientLog('socket connected', socket.id);
 			disarmPoll();
 			syncSessionRooms();
 		};
-		const onDisconnect = (_reason: string) => {
+		const onDisconnect = (reason: string) => {
+			realtimeClientLog('socket disconnect', reason);
 			armPoll();
 		};
-		const onConnectError = (_err: unknown) => {
+		const onConnectError = (err: unknown) => {
+			const msg = err instanceof Error ? err.message : String(err);
+			realtimeClientLog('socket connect_error', msg);
 			armPoll();
 		};
 
@@ -149,10 +163,17 @@
 		socket.on('disconnect', onDisconnect);
 		socket.on('connect_error', onConnectError);
 
+		realtimeClientLog('socket state', {
+			connected: socket.connected,
+			id: socket.id,
+			hasSession: !!sessionUser
+		});
+
 		if (socket.connected) syncSessionRooms();
 		else {
 			bootTimer = setTimeout(() => {
 				if (!socket.connected) {
+					realtimeClientLog('socket still disconnected after 2.5s — arming poll');
 					armPoll();
 				}
 			}, 2500);
